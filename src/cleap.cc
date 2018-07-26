@@ -83,6 +83,9 @@ CLEAP_RESULT _cleap_generate_edges_hash(_cleap_mesh *m, FILE *off, float prog, f
 		float4 p1 = m->vnc_data.v[m->triangles[i*face]];
 		float4 p2 = m->vnc_data.v[m->triangles[i*face+1]];
 		float4 p3 = m->vnc_data.v[m->triangles[i*face+2]];
+/*		m->circumcenters_data[i*face_type] = (GLfloat) m->vnc_data.v[&m->triangles[i*face]];//TESIS
+		m->circumcenters_data[i*face_type +1] = (GLfloat) m->vnc_data.v[&m->triangles[i*face +1]];//TESIS
+		m->circumcenters_data[i*face_type +2] = (GLfloat) m->vnc_data.v[&m->triangles[i*face +2]];//TESIS*/
 		v1 = make_float3( p2.x - p1.x, p2.y - p1.y, p2.z - p1.z);
 		v2 = make_float3( p3.x - p1.x, p3.y - p1.y, p3.z - p1.z);
 		normal.x =   (v1.y * v2.z) - (v2.y * v1.z);
@@ -158,6 +161,8 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	_cleap_reset_minmax(m);
 	// CLEAP:: malloc host triangles array
 	m->triangles = (GLuint*)malloc(sizeof(GLuint)*f_count*3);
+	// TESIS CLEAP:: malloc host circumcenters array
+	m->circumcenters_data = (float4*)malloc(sizeof(float4)*f_count*3);
 	// CLEAP:: malloc vertex data => struct of arrays
 	m->vnc_data.v = (float4*)malloc(sizeof(float4)*v_count);
 	m->vnc_data.n = (float4*)malloc(sizeof(float4)*v_count);
@@ -196,6 +201,7 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->status = CLEAP_SUCCESS;
 	m->wireframe = 0;
 	m->solid = 1;
+	m->circumcenters = 0; //TESIS
 
 	return CLEAP_SUCCESS;
 }

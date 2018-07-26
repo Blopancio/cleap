@@ -43,6 +43,7 @@
 // linux
 #include "cleap_glx_context.cu"
 
+#include <math.h>  
 // default blocksize
 int CLEAP_CUDA_BLOCKSIZE = 256;
 
@@ -189,6 +190,17 @@ CLEAP_RESULT cleap_render_mesh(_cleap_mesh *m){
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			glDrawElements(GL_TRIANGLES, cleap_get_face_count(m)*3, GL_UNSIGNED_INT, BUFFER_OFFSET(0));
 		}
+		if (m->circumcenters){ //TESIS
+			glBindBuffer(GL_ARRAY_BUFFER, m->dm->circumcenters);
+			glVertexPointer(3,      GL_FLOAT, 4*sizeof(float), 0);
+			glDisableClientState(GL_COLOR_ARRAY);  
+			glEnable(GL_PROGRAM_POINT_SIZE);
+			glPointSize(10);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+			glDrawElements(GL_POINTS, cleap_get_face_count(m)*3, GL_UNSIGNED_INT, BUFFER_OFFSET(0)); //Indicar numero de objetos
+		}
+
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		glDisableClientState(GL_NORMAL_ARRAY);
@@ -378,10 +390,11 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 	cudaGraphicsUnmapResources(1, &m->dm->eab_cuda, 0);
 	cudaFreeHost(h_listo);
 
+    cleap_sync_mesh(m);
+    cleap_calculating_cirucumcenter_2D(m);
 	return CLEAP_SUCCESS;
 
 }
-
 
 int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 
@@ -389,7 +402,11 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 	GLuint *d_eab;
 	size_t bytes=0;
 	int *h_listo, it=0, *flips;
-
+/*/
+	fprintf(stdout,"triangulo 1> %i,%i,%i\n", m->triangles[0], m->triangles[1], m->triangles[2]);
+	fprintf(stdout,"triangulo 2> %i,%i,%i\n", m->triangles[3], m->triangles[4], m->triangles[5]);
+	fprintf(stdout,"triangulo 3> %i,%i,%i\n", m->triangles[6], m->triangles[7], m->triangles[8]);
+	fprintf(stdout,"triangulo 4> %i,%i,%i\n", m->triangles[9], m->triangles[10], m->triangles[11]);/*/
 	cudaGraphicsMapResources(1, &m->dm->vbo_v_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->eab_cuda, 0);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_v, &bytes, m->dm->vbo_v_cuda);
@@ -440,6 +457,8 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 	cudaGraphicsUnmapResources(1, &m->dm->eab_cuda, 0);
 	cudaFreeHost(h_listo);
 
+	cleap_sync_mesh(m);
+	cleap_calculating_cirucumcenter_2D(m);
 	return *flips;
 
 }
@@ -454,6 +473,7 @@ CLEAP_RESULT cleap_clear_mesh(_cleap_mesh *m){
 		free(m->edge_data.b);
 		free(m->edge_data.op);
 		free(m->triangles);
+		free(m->circumcenters_data);
 
 		if(m->dm->status){
 			cudaFree(m->dm->d_edges_n);
@@ -585,7 +605,6 @@ CLEAP_RESULT _cleap_normalize_normals(_cleap_mesh *m){
 
 CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 
-
 	// CLEAP::DEVICE_LOAD:: create instance of device_mesh struct
 	m->dm = new cleap_device_mesh();
 	cleap_device_mesh *dmesh = m->dm;
@@ -623,6 +642,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	err = cudaGraphicsGLRegisterBuffer(&dmesh->vbo_c_cuda, dmesh->vbo_c, cudaGraphicsMapFlagsNone);
 	if( err != cudaSuccess )
 		printf("CLEAP::device_load_mesh::cudaGraphicsRegisterBuffer::vbo_c:: %s\n", cudaGetErrorString(err));
+	
 
 	// CLEAP::DEVICE_LOAD:: eab data
 	glGenBuffers(1, &dmesh->eab);                                                                                   // Generate buffer //index VBO
@@ -753,3 +773,257 @@ CLEAP_RESULT _cleap_init_glew(){
 	}
 	return CLEAP_SUCCESS;
 }
+
+//TESIS
+
+float* res = (float*) malloc(sizeof(float)*3);
+float modulo (float* i, float* j){
+	//printf("Modulo\n");
+	return pow(sqrt(pow(i[0] - j[0], 2) + pow(i[1] - j[1], 2) + pow(i[2] - j[2], 2)),2);
+}
+
+float determinante (float a, float b, float c, float d){
+	//printf("Det\n");	
+	return (a*d) - (b*c);
+}
+
+float productoPunto (float* a, float* b){
+	return (a[0]*b[0]) + (a[1]*b[1]) + (a[2]*b[2]);
+}
+
+int productoCruz (float* a, float* b){
+	//printf("Cruz\n");
+	res[0] = determinante(a[1], a[2], b[1], b[2]);
+	res[1] = -determinante(a[0], a[2], b[0], b[2]);
+	res[2] = determinante(a[0], a[1], b[0], b[1]);
+	return 0;
+}
+
+int mult (float* a, float b){
+	//printf("Mult\n");
+	res[0] = a[0] * b;
+	res[1] = a[1] * b;
+	res[2] = a[2] * b;
+	return 0;
+}
+
+int resta (float* a, float* b){
+	//printf("Resta\n");
+	res[0] = a[0] - b[0];
+	res[1] = a[1] - b[1];
+	res[2] = a[2] - b[2];
+	return 0;
+}
+
+int suma (float* a, float* b){
+	//printf("Suma\n");
+	res[0] = a[0] + b[0];
+	res[1] = a[1] + b[1];
+	res[2] = a[2] + b[2];
+	return 0;
+}
+
+int div(float* a, float b){
+	//printf("Div\n");
+	res[0] = a[0] / b;
+	res[1] = a[1] / b;
+	res[2] = a[2] / b;
+	return 0;
+}
+
+int circumcenter2 (float* a, float* b, float* c){
+	//printf("Circumcenter\n");
+	float cero[3] = {0,0,0};
+	
+	resta(b,a);
+	float A[3] = {res[0], res[1], res[2]};
+
+	resta(c,b);
+	float B[3] = {res[0], res[1], res[2]};
+	
+	resta(a,c);
+	float C[3] = {res[0], res[1], res[2]};
+
+	productoCruz(A,B);
+	float AXB[3] = {res[0], res[1], res[2]};
+
+	productoCruz(C,AXB);
+	float CXAXB[3] = {res[0], res[1], res[2]};
+
+	suma(a,c);
+	float sumca[3] = {res[0], res[1], res[2]};
+	
+	div(AXB,2);
+	float K[3] = {res[0], res[1], res[2]};
+	
+	div(sumca, 2);
+	float r1[3] =  {res[0], res[1], res[2]};  
+
+	mult(CXAXB, (productoPunto(A,B)/(8 * modulo(K,cero))));
+	float r2[3] =  {res[0], res[1], res[2]};
+
+	suma(r1,r2);
+/*/
+	printf("A: %f, %f, %f\n",A[0], A[1], A[2]);
+	printf("B: %f, %f, %f\n",B[0], B[1], B[2]);
+	printf("C: %f, %f, %f\n",C[0], C[1], C[2]);
+	printf("AXB: %f, %f, %f\n",AXB[0], AXB[1], AXB[2]);
+	printf("CXAXB: %f, %f, %f\n",CXAXB[0], CXAXB[1], CXAXB[2]);
+	printf("sumca: %f, %f, %f\n",sumca[0], sumca[1], sumca[2]);
+	printf("K: %f, %f, %f\n",K[0], K[1], K[2]);
+	printf("r1: %f, %f, %f\n",r1[0], r1[1], r1[2]);
+	printf("r2: %f, %f, %f\n",r2[0], r2[1], r2[2]);
+/*/	
+	return 0;
+}
+
+int circumcenter (float4 p1, float4 p2, float4 p3){
+	//printf("Circumcenter\n");
+	float cero[3] = {0,0,0};
+	float a[3] = {p1.x,p1.y,p1.z};
+	float b[3] = {p2.x,p2.y,p2.z};
+	float c[3] = {p3.x,p3.y,p3.z};
+	
+	resta(b,a);
+	float restaBA[3] = {res[0], res[1], res[2]};
+
+	resta(c,a);
+	float restaCA[3] = {res[0], res[1], res[2]};
+
+	productoCruz(restaBA,restaCA);
+	float BAXCA[3] = {res[0], res[1], res[2]};
+
+	productoCruz(BAXCA, restaBA);
+	float BAXCAXBA[3] = {res[0], res[1], res[2]};
+
+	productoCruz(restaCA,BAXCA);
+	float CAXBAXCA[3] = {res[0], res[1], res[2]};
+
+	mult(BAXCAXBA, modulo(c,a));
+	float r1[3] =  {res[0], res[1], res[2]};  
+
+	mult(CAXBAXCA, modulo(b,a));
+	float r2[3] =  {res[0], res[1], res[2]};
+
+
+	float r3 = 2*modulo(BAXCA, cero);
+	
+	suma(r1,r2);
+	float r4[3] = {res[0], res[1], res[2]};
+
+	div(r4,r3);
+	float r[3] = {res[0], res[1], res[2]};
+
+	suma(a,r);
+/*/
+	printf("restaBA: %f, %f, %f\n",restaBA[0], restaBA[1], restaBA[2]);
+	printf("restaCA: %f, %f, %f\n",restaCA[0], restaCA[1], restaCA[2]);
+	printf("BAXCA: %f, %f, %f\n",BAXCA[0], BAXCA[1], BAXCA[2]);
+	printf("BAXCAXBA: %f, %f, %f\n",BAXCAXBA[0], BAXCAXBA[1], BAXCAXBA[2]);
+	printf("CAXBAXCA: %f, %f, %f\n",CAXBAXCA[0], CAXBAXCA[1], CAXBAXCA[2]);
+	printf("r1: %f, %f, %f\n",r1[0], r1[1], r1[2]);
+	printf("r2: %f, %f, %f\n",r2[0], r2[1], r2[2]);
+	printf("r3: %f\n",r3);
+	printf("r4: %f, %f, %f\n",r4[0], r4[1], r4[2]);
+	printf("r: %f, %f, %f\n",r[0], r[1], r[2]);
+/*/	
+	return 0;
+}
+
+int circumcenter2 (float4 p1, float4 p2, float4 p3){
+	//printf("Circumcenter\n");
+	float cero[3] = {0,0,0};
+	float a[3] = {p1.x,p1.y,p1.z};
+	float b[3] = {p2.x,p2.y,p2.z};
+	float c[3] = {p3.x,p3.y,p3.z};
+	
+	resta(b,a);
+	float A[3] = {res[0], res[1], res[2]};
+
+	resta(c,b);
+	float B[3] = {res[0], res[1], res[2]};
+	
+	resta(a,c);
+	float C[3] = {res[0], res[1], res[2]};
+
+	productoCruz(A,B);
+	float AXB[3] = {res[0], res[1], res[2]};
+
+	productoCruz(C,AXB);
+	float CXAXB[3] = {res[0], res[1], res[2]};
+
+	suma(a,c);
+	float sumca[3] = {res[0], res[1], res[2]};
+	
+	div(AXB,2);
+	float K[3] = {res[0], res[1], res[2]};
+	
+	div(sumca, 2);
+	float r1[3] =  {res[0], res[1], res[2]};  
+
+	mult(CXAXB, (productoPunto(A,B)/(8 * modulo(K,cero))));
+	float r2[3] =  {res[0], res[1], res[2]};
+
+	suma(r1,r2);
+/*/
+	printf("A: %f, %f, %f\n",A[0], A[1], A[2]);
+	printf("B: %f, %f, %f\n",B[0], B[1], B[2]);
+	printf("C: %f, %f, %f\n",C[0], C[1], C[2]);
+	printf("AXB: %f, %f, %f\n",AXB[0], AXB[1], AXB[2]);
+	printf("CXAXB: %f, %f, %f\n",CXAXB[0], CXAXB[1], CXAXB[2]);
+	printf("sumca: %f, %f, %f\n",sumca[0], sumca[1], sumca[2]);
+	printf("K: %f, %f, %f\n",K[0], K[1], K[2]);
+	printf("r1: %f, %f, %f\n",r1[0], r1[1], r1[2]);
+	printf("r2: %f, %f, %f\n",r2[0], r2[1], r2[2]);
+/*/	
+	return 0;
+}
+
+CLEAP_RESULT cleap_calculating_cirucumcenter_2D(_cleap_mesh *m){
+
+	cleap_device_mesh *dmesh = m->dm;
+	cudaError_t err;
+	GLintptr triangles_bytes_size = cleap_get_face_count(m) * 4 * sizeof(float) ; //sizeof(GLuint)*cleap_get_vertex_count(m); //
+	fprintf(stdout, "vertex = %i\n", m->vertex_count);
+    int j=0;
+	for(int i =0; i<m->face_count; i++){//TESIS: 3D points
+		float4 p1 = m->vnc_data.v[m->triangles[i*3]];
+		float4 p2 = m->vnc_data.v[m->triangles[i*3+1]];
+		float4 p3 = m->vnc_data.v[m->triangles[i*3+2]];
+		fprintf(stdout, "P1 X Y Z = %f %f %f\n", p1.x, p1.y, p1.z);
+		fprintf(stdout, "P2 X Y Z = %f %f %f\n", p2.x, p2.y, p2.z);
+		fprintf(stdout, "P3 X Y Z = %f %f %f\n", p3.x, p3.y, p3.z);
+        j++;
+/*/
+		circumcenter(p1,p2,p3);
+
+		fprintf(stdout, "!X Y Z = %f %f %f\n", res[0], res[1], res[2]);
+ /*/
+		circumcenter2(p1,p2,p3);
+
+		m->circumcenters_data[i].x = res[0]; 
+		m->circumcenters_data[i].y = res[1]; 
+		m->circumcenters_data[i].z = res[2]; 
+		m->circumcenters_data[i].w = 1.0;
+        fprintf(stdout, "!!X Y Z = %f %f %f\n\n", res[0], res[1], res[2]);
+	}	
+	fprintf(stdout, "Finish = %i\n", m->vertex_count);
+    for (int i=0; i<j; i++){
+        fprintf(stdout, "circumcenters X Y Z = %f %f %f\n\n", m->circumcenters_data[i].x, m->circumcenters_data[i].y, m->circumcenters_data[i].z);
+    }
+	glGenBuffers(1, &dmesh->circumcenters);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,dmesh->circumcenters); 
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, triangles_bytes_size, 0, GL_STATIC_DRAW);
+	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, triangles_bytes_size, m->circumcenters_data);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	err = cudaGraphicsGLRegisterBuffer(&dmesh->circumcenters_cuda, dmesh->circumcenters, cudaGraphicsMapFlagsNone);
+	if( err != cudaSuccess )
+		printf("CLEAP::circumcenter_calculus::cudaGraphicsRegisterBuffer::circumcenters:: %s\n", cudaGetErrorString(err));
+	m->circumcenters = 1;
+    printf("Size of buffer %i, %i\n", 4 * sizeof(float), (int)triangles_bytes_size);
+
+
+    return CLEAP_SUCCESS;
+}
+
+
