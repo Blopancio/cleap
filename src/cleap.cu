@@ -37,6 +37,7 @@
 #include "cleap_kernel_utils.cu"
 #include "cleap_kernel_normalize_normals.cu"
 #include "cleap_kernel_delaunay_transformation.cu"
+#include "cleap_kernel_voronoi_transformation.cu"
 #include "cleap_kernel_paint_mesh.cu"
 
 // context creation header for opengl
@@ -198,7 +199,7 @@ CLEAP_RESULT cleap_render_mesh(_cleap_mesh *m){
 			glPointSize(10);
 			glColor3f(1.0f, 0.0f, 0.0f);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-			glDrawElements(GL_POINTS, cleap_get_face_count(m)*3, GL_UNSIGNED_INT, BUFFER_OFFSET(0)); //Indicar numero de objetos
+			glDrawElements(GL_TRIANGLES, cleap_get_face_count(m)*4, GL_UNSIGNED_INT, BUFFER_OFFSET(0)); //Indicar numero de objetos
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -309,14 +310,16 @@ void cleap_print_mesh( _cleap_mesh *m ){
 CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 
 	//printf("CLEAP::delaunay_transformation_%id::", mode);
-	float4 *d_vbo_v;
+	float4 *d_vbo_v, *d_circumcenters;
 	GLuint *d_eab;
 	size_t bytes=0;
 	int *h_listo, it=0;
 	// Map resources
+    cudaGraphicsMapResources(1, &m->dm->circumcenters_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->vbo_v_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->eab_cuda, 0);
-	cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_v, &bytes, m->dm->vbo_v_cuda);
+	cudaGraphicsResourceGetMappedPointer( (void**)&d_circumcenters, &bytes, m->dm->circumcenters_cuda);
+    cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_v, &bytes, m->dm->vbo_v_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_eab, &bytes, m->dm->eab_cuda);
 	// TEXTURE
 	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<GLuint>();
@@ -381,11 +384,17 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 		}
 		cudaFree(m->dm->d_listo);
 	}
+	m->circumcenters = 1;
+    //cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, cleap_get_face_count(m));
+    //for(int i=0; i< cleap_get_face_count(m); i++){
+    //    printf("d_circumcenters %i: x:%f y:%f, z:%f\n", i, d_circumcenters[i].x, d_circumcenters[i].y, d_circumcenters[i].z);
+    //}
 	//printf("computed in %.5g[s] (%i iterations)\n", _cleap_stop_timer(), it );
 	//printf("%.6f\n", _cleap_stop_timer());
 	//!Unbind Texture
 	cudaUnbindTexture(tex_triangles);
 	// unmap buffer object
+    cudaGraphicsUnmapResources(1, &m->dm->circumcenters_cuda, 0);
 	cudaGraphicsUnmapResources(1, &m->dm->vbo_v_cuda, 0);
 	cudaGraphicsUnmapResources(1, &m->dm->eab_cuda, 0);
 	cudaFreeHost(h_listo);
@@ -398,7 +407,7 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 
 int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 
-	float4 *d_vbo_v;
+    float4 *d_vbo_v, *d_circumcenters;
 	GLuint *d_eab;
 	size_t bytes=0;
 	int *h_listo, it=0, *flips;
@@ -407,8 +416,10 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 	fprintf(stdout,"triangulo 2> %i,%i,%i\n", m->triangles[3], m->triangles[4], m->triangles[5]);
 	fprintf(stdout,"triangulo 3> %i,%i,%i\n", m->triangles[6], m->triangles[7], m->triangles[8]);
 	fprintf(stdout,"triangulo 4> %i,%i,%i\n", m->triangles[9], m->triangles[10], m->triangles[11]);/*/
+    cudaGraphicsMapResources(1, &m->dm->circumcenters_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->vbo_v_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->eab_cuda, 0);
+    cudaGraphicsResourceGetMappedPointer( (void**)&d_circumcenters, &bytes, m->dm->circumcenters_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_v, &bytes, m->dm->vbo_v_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_eab, &bytes, m->dm->eab_cuda);
 
@@ -439,6 +450,8 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 		cleap_kernel_exclusion_processing_3d<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, m->dm->d_edges_op, cleap_get_edge_count(m), m->dm->d_listo, m->dm->d_trirel, m->dm->d_trireservs);
 	
 	cudaThreadSynchronize();
+    m->circumcenters = 1;
+    cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, cleap_get_face_count(m));
 	if( h_listo[0] ){
 		cudaUnbindTexture(tex_triangles);
 		// unmap buffer object
@@ -447,7 +460,6 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 		cudaFreeHost(h_listo);
 		return 0;
 	}
-	cleap_kernel_repair<<< dimGrid, dimBlock >>>(d_eab, m->dm->d_trirel, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, m->dm->d_edges_op, cleap_get_edge_count(m)); //update
 	it++;
 	//printf("CLEAP::delaunay_transformation_%id:: Iteration computed in %.5g[s]\n", mode, _cleap_stop_timer() );
 	//!Unbind Texture
@@ -457,9 +469,9 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 	cudaGraphicsUnmapResources(1, &m->dm->eab_cuda, 0);
 	cudaFreeHost(h_listo);
 
-	cleap_sync_mesh(m);
-	cleap_calculating_cirucumcenter_2D(m);
-	return *flips;
+	//cleap_sync_mesh(m);
+	//cleap_calculating_cirucumcenter_2D(m);
+    return *flips;
 
 }
 CLEAP_RESULT cleap_clear_mesh(_cleap_mesh *m){
@@ -611,7 +623,8 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	cudaError_t err;
 	// CLEAP::DEVICE_LOAD:: get sizes of _cleap_mesh arrays, in bytes
 	GLintptr size = cleap_get_vertex_count(m) *4* sizeof(float);
-	GLintptr triangles_bytes_size = sizeof(GLuint)*cleap_get_face_count(m)*3;
+    GLintptr triangles_bytes_size = sizeof(GLuint)*cleap_get_face_count(m)*3;
+    GLintptr circumcenter_size = sizeof(float)*cleap_get_face_count(m)*4;
 
 	// CLEAP::DEVICE_LOAD:: vbo vertex data
 	glGenBuffers(1, &dmesh->vbo_v);
@@ -653,6 +666,16 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	err = cudaGraphicsGLRegisterBuffer(&dmesh->eab_cuda, dmesh->eab, cudaGraphicsMapFlagsNone);
 	if( err != cudaSuccess )
 		printf("CLEAP::device_load_mesh::cudaGraphicsRegisterBuffer::eab:: %s\n", cudaGetErrorString(err));
+
+    // CLEAP::DEVICE_LOAD:: circumcenters_data
+    glGenBuffers(1, &dmesh->circumcenters);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,dmesh->circumcenters);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, circumcenter_size, 0, GL_STATIC_DRAW);
+    glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, circumcenter_size, m->circumcenters_data);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+    err = cudaGraphicsGLRegisterBuffer(&dmesh->circumcenters_cuda, dmesh->circumcenters, cudaGraphicsMapFlagsNone);
+    if( err != cudaSuccess )
+        printf("CLEAP::circumcenter_calculus::cudaGraphicsRegisterBuffer::circumcenters:: %s\n", cudaGetErrorString(err));
 
 	// CLEAP::DEVICE_LOAD:: edges data
 	// CLEAP::DEVICE_LOAD:: malloc mesh and aux arrays
@@ -981,47 +1004,30 @@ int circumcenter2 (float4 p1, float4 p2, float4 p3){
 
 CLEAP_RESULT cleap_calculating_cirucumcenter_2D(_cleap_mesh *m){
 
-	cleap_device_mesh *dmesh = m->dm;
-	cudaError_t err;
-	GLintptr triangles_bytes_size = cleap_get_face_count(m) * 4 * sizeof(float) ; //sizeof(GLuint)*cleap_get_vertex_count(m); //
-	fprintf(stdout, "vertex = %i\n", m->vertex_count);
+	fprintf(stdout, "Start at %i\n", m->vertex_count);
     int j=0;
 	for(int i =0; i<m->face_count; i++){//TESIS: 3D points
 		float4 p1 = m->vnc_data.v[m->triangles[i*3]];
 		float4 p2 = m->vnc_data.v[m->triangles[i*3+1]];
 		float4 p3 = m->vnc_data.v[m->triangles[i*3+2]];
-		fprintf(stdout, "P1 X Y Z = %f %f %f\n", p1.x, p1.y, p1.z);
+		/*/fprintf(stdout, "P1 X Y Z = %f %f %f\n", p1.x, p1.y, p1.z);
 		fprintf(stdout, "P2 X Y Z = %f %f %f\n", p2.x, p2.y, p2.z);
-		fprintf(stdout, "P3 X Y Z = %f %f %f\n", p3.x, p3.y, p3.z);
+		fprintf(stdout, "P3 X Y Z = %f %f %f\n", p3.x, p3.y, p3.z);/*/
         j++;
 /*/
 		circumcenter(p1,p2,p3);
-
-		fprintf(stdout, "!X Y Z = %f %f %f\n", res[0], res[1], res[2]);
  /*/
 		circumcenter2(p1,p2,p3);
 
 		m->circumcenters_data[i].x = res[0]; 
 		m->circumcenters_data[i].y = res[1]; 
-		m->circumcenters_data[i].z = res[2]; 
+		m->circumcenters_data[i].z = res[2];
 		m->circumcenters_data[i].w = 1.0;
-        fprintf(stdout, "!!X Y Z = %f %f %f\n\n", res[0], res[1], res[2]);
 	}	
-	fprintf(stdout, "Finish = %i\n", m->vertex_count);
-    for (int i=0; i<j; i++){
-        fprintf(stdout, "circumcenters X Y Z = %f %f %f\n\n", m->circumcenters_data[i].x, m->circumcenters_data[i].y, m->circumcenters_data[i].z);
-    }
-	glGenBuffers(1, &dmesh->circumcenters);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,dmesh->circumcenters); 
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, triangles_bytes_size, 0, GL_STATIC_DRAW);
-	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, triangles_bytes_size, m->circumcenters_data);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	err = cudaGraphicsGLRegisterBuffer(&dmesh->circumcenters_cuda, dmesh->circumcenters, cudaGraphicsMapFlagsNone);
-	if( err != cudaSuccess )
-		printf("CLEAP::circumcenter_calculus::cudaGraphicsRegisterBuffer::circumcenters:: %s\n", cudaGetErrorString(err));
-	m->circumcenters = 1;
-    printf("Size of buffer %i, %i\n", 4 * sizeof(float), (int)triangles_bytes_size);
-
+	fprintf(stdout, "Finish at %i\n", m->vertex_count);
+    /*/for (int i=0; i<j; i++){
+        fprintf(stdout, "circumcenters X Y Z = %f %f %f\n", m->circumcenters_data[i].x, m->circumcenters_data[i].y, m->circumcenters_data[i].z);
+    }/*/
 
     return CLEAP_SUCCESS;
 }
