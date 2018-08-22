@@ -39,4 +39,24 @@ __global__ void cleap_kernel_circumcenter_calculus( float4* vertex_data, GLuint*
     }
 }
 
+__global__ void cleap_kernel_voronoi_edges( float4* vertex_data, int2 *voronoi_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count){
+
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if( i<edges_count ){
+        if(edges_b[i].x == -1){
+            //float4 mid_point = make_float4((vertex_data[edges_n[i].x].x + vertex_data[edges_n[i].y].x)/2.0, (vertex_data[edges_n[i].x].y + vertex_data[edges_n[i].y].y)/2.0, (vertex_data[edges_n[i].x].z + vertex_data[edges_n[i].y].z)/2.0, 1.0);
+
+            //Proyectar punto medio con circuncentro
+        }
+        else{
+            int t_index_a = edges_a[i].x/3;
+            int t_index_b = edges_b[i].x/3;
+            voronoi_edges[i].x = t_index_a;
+            voronoi_edges[i].y = t_index_b;
+            //unir circuncentro t_index_a con t_index_b
+        }
+    }
+}
+
+
 #endif

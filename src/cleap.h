@@ -182,11 +182,6 @@ extern "C" {
 	 * @result <tt>CLEAP_SUCCESS</tt> if succesful, otherwise <tt>CLEAP_FAILURE</tt>.
 	 */
 	int cleap_delaunay_transformation_interactive(cleap_mesh *m, int mode);
-	/** Calculate the circumcenter of each mesh's triangle.
-	 * @param m a pointer of type cleap_mesh.
-	 * @result <tt>CLEAP_SUCCESS</tt> if succesful, otherwise <tt>CLEAP_FAILURE</tt>.
-	 */
-	CLEAP_RESULT cleap_calculating_cirucumcenter_2D(_cleap_mesh *m);
 #ifdef __cplusplus
 }
 #endif
