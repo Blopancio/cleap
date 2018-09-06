@@ -160,6 +160,8 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->triangles = (GLuint*)malloc(sizeof(GLuint)*f_count*3);
 	// TESIS CLEAP:: malloc host circumcenters array
 	m->circumcenters_data = (float4*)malloc(sizeof(float4)*f_count);
+	// TESIS CLEAP:: malloc host voronoi edges array
+	m->voronoi_edges_data = (int2*)malloc(sizeof(int2)*e_count);
 	// CLEAP:: malloc vertex data => struct of arrays
 	m->vnc_data.v = (float4*)malloc(sizeof(float4)*v_count);
 	m->vnc_data.n = (float4*)malloc(sizeof(float4)*v_count);
@@ -199,6 +201,7 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->wireframe = 0;
 	m->solid = 1;
 	m->circumcenters = 0; //TESIS
+	m->voronoi_edge = 0; //TESIS
 
 	return CLEAP_SUCCESS;
 }

@@ -39,24 +39,42 @@ __global__ void cleap_kernel_circumcenter_calculus( float4* vertex_data, GLuint*
     }
 }
 
-__global__ void cleap_kernel_voronoi_edges( float4* vertex_data, int2 *voronoi_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count){
+template<unsigned int block_size>
+__global__ void cleap_kernel_voronoi_edges( float4* vertex_data, int2 *voronoi_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count, int* count){
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if( i<edges_count ){
         if(edges_b[i].x == -1){
-            //float4 mid_point = make_float4((vertex_data[edges_n[i].x].x + vertex_data[edges_n[i].y].x)/2.0, (vertex_data[edges_n[i].x].y + vertex_data[edges_n[i].y].y)/2.0, (vertex_data[edges_n[i].x].z + vertex_data[edges_n[i].y].z)/2.0, 1.0);
-
-            //Proyectar punto medio con circuncentro
+            voronoi_edges[i] = make_int2(i, i);
+            atomicAdd(count, 1);
+            //printf("External edge (tr A, tr B): %i\n", edges_a[i].x / 3);
         }
         else{
             int t_index_a = edges_a[i].x/3;
             int t_index_b = edges_b[i].x/3;
-            voronoi_edges[i].x = t_index_a;
-            voronoi_edges[i].y = t_index_b;
-            //unir circuncentro t_index_a con t_index_b
+            voronoi_edges[i] = make_int2(t_index_a, t_index_b);
+
         }
     }
 }
 
+__global__ void cleap_kernel_external_edges( float4* vertex_data, float4* external_edges_data, int2 *external_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count){
+
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if( i<edges_count ) {
+        if (edges_b[i].x == -1) {
+            printf("External edge (tr A, tr B): %i, void\n", edges_a[i].x / 3);
+            float4 mid_point = make_float4((vertex_data[edges_n[i].x].x + vertex_data[edges_n[i].y].x) / 2.0,
+                                           (vertex_data[edges_n[i].x].y + vertex_data[edges_n[i].y].y) / 2.0,
+                                           (vertex_data[edges_n[i].x].z + vertex_data[edges_n[i].y].z) / 2.0, 1.0);
+
+        }
+    }
+}
+
+
+/*/TODO: Unir hacia adentro con otro color!!!!   Agregar este punto a la lista a dibujar.
+
+/*/
 
 #endif

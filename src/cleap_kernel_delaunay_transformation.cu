@@ -187,11 +187,11 @@ __global__ void cleap_kernel_exclusion_processing_2d_debug(float4* mesh_data, GL
                     triangles[a_shared_array[threadIdx.x].x] = triangles[op_shared_array[threadIdx.x].y];
                     triangles[b_shared_array[threadIdx.x].y] = triangles[op_shared_array[threadIdx.x].x];
                     // update the indices of the flipped edge.
-                    edges_a[i] = make_int2(op_shared_array[threadIdx.x].x, a_shared_array[threadIdx.x].x);
-                    edges_b[i] = make_int2(b_shared_array[threadIdx.x].y, op_shared_array[threadIdx.x].y); 
-		    // update vertex indices
-		    edges_n[i] = make_int2(triangles[op_shared_array[threadIdx.x].x], triangles[a_shared_array[threadIdx.x].x]);
-		    // update oppposites indices
+                     edges_a[i] = make_int2(op_shared_array[threadIdx.x].x, a_shared_array[threadIdx.x].x);
+                    edges_b[i] = make_int2(b_shared_array[threadIdx.x].y, op_shared_array[threadIdx.x].y);
+                    // update vertex indices
+                    edges_n[i] = make_int2(triangles[op_shared_array[threadIdx.x].x], triangles[a_shared_array[threadIdx.x].x]);
+                    // update oppposites indices
                     edges_op[i] = make_int2(a_shared_array[threadIdx.x].y, b_shared_array[threadIdx.x].x);
                     atomicAdd(flips, 1);
                 }
