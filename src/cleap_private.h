@@ -29,25 +29,25 @@ struct cleap_edge_data{
 };
 
 struct cleap_device_mesh {
-	struct cudaGraphicsResource *vbo_v_cuda, *vbo_n_cuda, *vbo_c_cuda, *eab_cuda, *circumcenters_cuda, *voronoi_edges_cuda;
-	GLuint vbo_v, vbo_n, vbo_c, eab, circumcenters, voronoi_edge;
-	int2 *d_edges_n, *d_edges_a, *d_edges_b, *d_edges_op, *voronoi_edges, *external_edge;
+	struct cudaGraphicsResource *vbo_v_cuda, *vbo_n_cuda, *vbo_c_cuda, *eab_cuda, *circumcenters_cuda, *voronoi_edges_cuda, *external_edges_index_cuda, *external_edges_vertex_cuda;
+	GLuint vbo_v, vbo_n, vbo_c, eab, circumcenters, external_edge_vertex, voronoi_edge, external_edge_index;
+	int2 *d_edges_n, *d_edges_a, *d_edges_b, *d_edges_op, *voronoi_edges, *external_edges_index;
 	int *d_trirel, *d_trireservs, *d_listo;
 	CLEAP_RESULT status;
 };
 
-
+//TODO: revisar tamano de external edges (dejar en tamano completo o ver si se pueden adecuar al caso)
 struct _cleap_mesh {
 		cleap_vnc_data vnc_data;
 		cleap_edge_data edge_data;
-        int2* external_edges_data;
-		int2* voronoi_edges_data; //TESIS
+		int2* voronoi_edges_data;
+        int2* external_edges_index_data; //TESIS
 		GLuint* triangles;
-        float4* external_edges;
-		float4* circumcenters_data; //TESIS
-		int vertex_count, edge_count, face_count;
+        float4* circumcenters_data;
+        float4* external_edges_vertex_data; //TESIS
+		int vertex_count, edge_count, face_count, external_edge_count;
 		float3 max_coords, min_coords;
-		int processed_edges, wireframe, solid, circumcenters, voronoi_edge; //TESIS
+		int processed_edges, wireframe, solid, circumcenters, voronoi_edge, external_edge; //TESIS
 		cleap_device_mesh *dm;
 		CLEAP_RESULT status;	// important flag!!
 };

@@ -114,6 +114,7 @@ CLEAP_RESULT _cleap_generate_edges_hash(_cleap_mesh *m, FILE *off, float prog, f
 	m->processed_edges = 0;
 	// CLEAP::MESH:: update the edge count, now after being calculated
 	m->edge_count = edge_vector.size();
+	m->external_edge_count = 0;
 	// CLEAP::MESH:: malloc edge data
 	m->edge_data.n = (int2*)malloc( sizeof(int2)*m->edge_count );
 	m->edge_data.a = (int2*)malloc( sizeof(int2)*m->edge_count );
@@ -155,13 +156,18 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->vertex_count = v_count;
 	m->edge_count = e_count;
 	m->face_count = f_count;
+	m->external_edge_count = 0;
 	_cleap_reset_minmax(m);
 	// CLEAP:: malloc host triangles array
 	m->triangles = (GLuint*)malloc(sizeof(GLuint)*f_count*3);
 	// TESIS CLEAP:: malloc host circumcenters array
 	m->circumcenters_data = (float4*)malloc(sizeof(float4)*f_count);
+	// TESIS CLEAP:: malloc host circumcenters array
+	m->external_edges_vertex_data = (float4*)malloc(sizeof(float4)*f_count);
 	// TESIS CLEAP:: malloc host voronoi edges array
 	m->voronoi_edges_data = (int2*)malloc(sizeof(int2)*e_count);
+    // TESIS CLEAP:: malloc host voronoi edges array
+    m->external_edges_index_data = (int2*)malloc(sizeof(int2)*e_count);
 	// CLEAP:: malloc vertex data => struct of arrays
 	m->vnc_data.v = (float4*)malloc(sizeof(float4)*v_count);
 	m->vnc_data.n = (float4*)malloc(sizeof(float4)*v_count);
@@ -202,6 +208,7 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->solid = 1;
 	m->circumcenters = 0; //TESIS
 	m->voronoi_edge = 0; //TESIS
+	m->external_edge = 0;
 
 	return CLEAP_SUCCESS;
 }

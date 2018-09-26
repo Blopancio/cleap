@@ -36,42 +36,49 @@ __global__ void cleap_kernel_circumcenter_calculus( float4* vertex_data, GLuint*
         r2 = make_float3(factor*v.x, factor*v.y, factor*v.z);
 
         circumcenters[i] = make_float4(r1.x + r2.x, r1.y + r2.y, r1.z + r2.z, 1.0);
+        printf("Circumcenter %i: %f, %f, %f\n", i, circumcenters[i].x, circumcenters[i].y, circumcenters[i].z );
     }
 }
 
 template<unsigned int block_size>
-__global__ void cleap_kernel_voronoi_edges( float4* vertex_data, int2 *voronoi_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count, int* count){
+__global__ void cleap_kernel_voronoi_edges( float4* vertex_data, float4* external_edges_data, int2 *voronoi_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count, int face_count, int* count){
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if( i<edges_count ){
+        external_edges_data[edges_a[i].x/3] = make_float4(0, 0, 0, 1.0);
+        external_edges_data[i + face_count] = make_float4(0, 0, 0, 1.0);
         if(edges_b[i].x == -1){
             voronoi_edges[i] = make_int2(i, i);
             atomicAdd(count, 1);
-            //printf("External edge (tr A, tr B): %i\n", edges_a[i].x / 3);
+            printf("%i External edge (tr A, tr B): %i, void\n", i, edges_a[i].x / 3);
         }
         else{
             int t_index_a = edges_a[i].x/3;
             int t_index_b = edges_b[i].x/3;
-            voronoi_edges[i] = make_int2(t_index_a, t_index_b);
+            if (t_index_a < t_index_b) voronoi_edges[i] = make_int2(t_index_a, t_index_b);
+            else voronoi_edges[i] = make_int2(t_index_b, t_index_a);
+            printf("%i Internal edge (tr A, tr B): %i, %i\n", i, voronoi_edges[i].x, voronoi_edges[i].y);
 
         }
     }
 }
-
-__global__ void cleap_kernel_external_edges( float4* vertex_data, float4* external_edges_data, int2 *external_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count){
+template<unsigned int block_size>
+__global__ void cleap_kernel_external_edges( float4* vertex_data, float4* external_edges_data, int2 *external_edges, int2 *edges_n, int2 *edges_a, int2 *edges_b, float4* circumcenters, int edges_count, int face_count){
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if( i<edges_count ) {
-        if (edges_b[i].x == -1) {
-            printf("External edge (tr A, tr B): %i, void\n", edges_a[i].x / 3);
+    if( i<edges_count ){
+        external_edges[i] = make_int2(edges_a[i].x/3 , edges_a[i].x/3);
+        if(edges_b[i].x == -1) {
             float4 mid_point = make_float4((vertex_data[edges_n[i].x].x + vertex_data[edges_n[i].y].x) / 2.0,
-                                           (vertex_data[edges_n[i].x].y + vertex_data[edges_n[i].y].y) / 2.0,
-                                           (vertex_data[edges_n[i].x].z + vertex_data[edges_n[i].y].z) / 2.0, 1.0);
+                    (vertex_data[edges_n[i].x].y + vertex_data[edges_n[i].y].y) / 2.0,
+                    (vertex_data[edges_n[i].x].z + vertex_data[edges_n[i].y].z) / 2.0, 1.0);
+            external_edges_data[edges_a[i].x/3 ] = make_float4(circumcenters[edges_a[i].x/3].x, circumcenters[edges_a[i].x/3].y, circumcenters[edges_a[i].x/3].z, 1.0);
+            external_edges_data[i  + face_count] = make_float4(mid_point.x, mid_point.y, mid_point.z, mid_point.w);
+            external_edges[i] = make_int2(edges_a[i].x/3 , i  + face_count);
 
         }
     }
 }
-
 
 /*/TODO: Unir hacia adentro con otro color!!!!   Agregar este punto a la lista a dibujar.
 
