@@ -52,6 +52,7 @@ typedef int CLEAP_RESULT;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 	/** cleap mesh. It is the library's main structure.
 	 * This structure hides all internals to the user and the library provides functions for all operations.
 	 * An application should use pointers to this struct in order to handle one or multiple meshes simultaneusly and correctly.

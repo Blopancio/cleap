@@ -166,8 +166,10 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->external_edges_vertex_data = (float4*)malloc(sizeof(float4)*f_count);
 	// TESIS CLEAP:: malloc host voronoi edges array
 	m->voronoi_edges_data = (int2*)malloc(sizeof(int2)*e_count);
-    // TESIS CLEAP:: malloc host voronoi edges array
+    // TESIS CLEAP:: malloc host voronoi external edges array
     m->external_edges_index_data = (int2*)malloc(sizeof(int2)*e_count);
+    // TESIS CLEAP:: malloc host voronoi edges per vertex array
+    m->voronoi_edges_index_vertex = (int3*)malloc(sizeof(int3)*f_count);
 	// CLEAP:: malloc vertex data => struct of arrays
 	m->vnc_data.v = (float4*)malloc(sizeof(float4)*v_count);
 	m->vnc_data.n = (float4*)malloc(sizeof(float4)*v_count);

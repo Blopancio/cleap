@@ -29,9 +29,10 @@ struct cleap_edge_data{
 };
 
 struct cleap_device_mesh {
-	struct cudaGraphicsResource *vbo_v_cuda, *vbo_n_cuda, *vbo_c_cuda, *eab_cuda, *circumcenters_cuda, *voronoi_edges_cuda, *external_edges_index_cuda, *external_edges_vertex_cuda;
-	GLuint vbo_v, vbo_n, vbo_c, eab, circumcenters, external_edge_vertex, voronoi_edge, external_edge_index;
+	struct cudaGraphicsResource *vbo_v_cuda, *vbo_n_cuda, *vbo_c_cuda, *eab_cuda, *circumcenters_cuda, *voronoi_edges_cuda, *external_edges_index_cuda, *external_edges_vertex_cuda, *voronoi_edges_vertex_cuda;
+	GLuint vbo_v, vbo_n, vbo_c, eab, circumcenters, external_edge_vertex, voronoi_edge, external_edge_index, voronoi_edges_vertex;
 	int2 *d_edges_n, *d_edges_a, *d_edges_b, *d_edges_op, *voronoi_edges, *external_edges_index;
+	int3 *voronoi_edges_vertex_index;
 	int *d_trirel, *d_trireservs, *d_listo;
 	CLEAP_RESULT status;
 };
@@ -42,6 +43,7 @@ struct _cleap_mesh {
 		cleap_edge_data edge_data;
 		int2* voronoi_edges_data;
         int2* external_edges_index_data; //TESIS
+        int3* voronoi_edges_index_vertex;
 		GLuint* triangles;
         float4* circumcenters_data;
         float4* external_edges_vertex_data; //TESIS
