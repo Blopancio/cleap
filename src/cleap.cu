@@ -128,10 +128,6 @@ int cleap_get_face_count(_cleap_mesh *hm){
 	return hm->face_count;
 }
 
-int cleap_get_external_edge_count(_cleap_mesh *hm){
-    return hm->external_edge_count;
-}
-
 _cleap_mesh* cleap_load_mesh(const char* filename){
 
 	_cleap_mesh *m = new _cleap_mesh();	// create mew mesh
@@ -446,19 +442,9 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
     m->voronoi_edge = 1;
     cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, cleap_get_face_count(m));
 
-    cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m), dexternal_edges);
+    cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m));
 
     cudaThreadSynchronize();
-    m->external_edge_count= *dexternal_edges;
-
-    if(cleap_get_external_edge_count(m)){
-
-        m->external_edge = 1;
-        *dexternal_edges = *dexternal_edges *2;
-
-        cleap_kernel_external_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m));
-
-    }
 	//printf("computed in %.5g[s] (%i iterations)\n", _cleap_stop_timer(), it );
 	//printf("%.6f\n", _cleap_stop_timer());
 	//!Unbind Texture
@@ -542,19 +528,10 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
     m->circumcenters = 1;
     m->voronoi_edge = 1;
     cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, cleap_get_face_count(m));
-	cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m), dexternal_edges);
+	cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m));
 
     cudaThreadSynchronize();
-    m->external_edge_count= *dexternal_edges;
 
-    if(cleap_get_external_edge_count(m)){
-
-        m->external_edge = 1;
-        *dexternal_edges = *dexternal_edges *2;
-
-        cleap_kernel_external_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m));
-		cudaThreadSynchronize();
-    }
 	if( h_listo[0] ){
 		cudaUnbindTexture(tex_triangles);
 		// unmap buffer object
