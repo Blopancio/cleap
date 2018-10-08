@@ -442,9 +442,9 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
     m->voronoi_edge = 1;
     cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, d_vertex_edges_index, cleap_get_face_count(m));
 
-    cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m));
+    cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, m->dm->d_trireservs, cleap_get_edge_count(m), cleap_get_face_count(m));
 
-    cleap_kernel_voronoi_edges_index<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, m->dm->d_edges_n, d_voronoi, cleap_get_edge_count(m));
+    cleap_kernel_voronoi_edges_index<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, m->dm->d_edges_n, d_voronoi, m->dm->d_trireservs, cleap_get_edge_count(m));
     cudaThreadSynchronize();
 	//printf("computed in %.5g[s] (%i iterations)\n", _cleap_stop_timer(), it );
 	//printf("%.6f\n", _cleap_stop_timer());
@@ -529,9 +529,9 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
     m->circumcenters = 1;
     m->voronoi_edge = 1;
     cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, d_vertex_edges_index, cleap_get_face_count(m));
-	cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, cleap_get_edge_count(m), cleap_get_face_count(m));
+	cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, m->dm->d_trireservs, cleap_get_edge_count(m), cleap_get_face_count(m));
 	cudaThreadSynchronize();
-	cleap_kernel_voronoi_edges_index<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, m->dm->d_edges_n, d_voronoi, cleap_get_edge_count(m));
+	cleap_kernel_voronoi_edges_index<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, m->dm->d_edges_n, d_voronoi, m->dm->d_trireservs, cleap_get_edge_count(m));
 
     cudaThreadSynchronize();
 
@@ -830,6 +830,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
     cudaMalloc( (void**) &dmesh->voronoi_edges_vertex_index , vertex_edges_bytes_size );
 	cudaMalloc( (void**) &dmesh->d_trirel, face_bytes_size );
 	cudaMalloc( (void**) &dmesh->d_trireservs, face_bytes_size );
+	cudaMalloc( (void**) &dmesh->d_edgesreservs, edge_bytes_size );
 
 	// CLEAP::DEVICE_LOAD:: memcpy mesh and aux arrays
 	cudaMemcpy( dmesh->d_edges_n, m->edge_data.n , edge_bytes_size, cudaMemcpyHostToDevice );

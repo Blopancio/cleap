@@ -33,7 +33,7 @@ struct cleap_device_mesh {
 	GLuint vbo_v, vbo_n, vbo_c, eab, circumcenters, external_edge_vertex, voronoi_edge, external_edge_index, voronoi_edges_vertex;
 	int2 *d_edges_n, *d_edges_a, *d_edges_b, *d_edges_op, *voronoi_edges, *external_edges_index;
 	int3 *voronoi_edges_vertex_index;
-	int *d_trirel, *d_trireservs, *d_listo;
+	int *d_trirel, *d_trireservs, *d_listo, *d_edgesreservs;
 	CLEAP_RESULT status;
 };
 
