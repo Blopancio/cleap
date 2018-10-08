@@ -1,8 +1,9 @@
 #ifndef _CLEAP_KERNEL_VORONOI_TRANSFORMATION_H
 #define _CLEAP_KERNEL_VORONOI_TRANSFORMATION_H
 
+
 template<unsigned int block_size>
-__global__ void cleap_kernel_circumcenter_calculus( float4* vertex_data, GLuint* triangles, float4* circumcenters, /*int3* vertex_edges_index,*/ int face_count){
+__global__ void cleap_kernel_circumcenter_calculus( float4* vertex_data, GLuint* triangles, float4* circumcenters, int3* vertex_edges_index, int face_count){
 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if( i<face_count ){
@@ -36,10 +37,10 @@ __global__ void cleap_kernel_circumcenter_calculus( float4* vertex_data, GLuint*
         r2 = make_float3(factor*v.x, factor*v.y, factor*v.z);
 
         circumcenters[i] = make_float4(r1.x + r2.x, r1.y + r2.y, r1.z + r2.z, 1.0);
-       /* vertex_edges_index[i].x = -1;
+        vertex_edges_index[i].x = -1;
         vertex_edges_index[i].y = -1;
         vertex_edges_index[i].z = -1;
-        printf("Circumcenter %i: %f, %f, %f\n", i, circumcenters[i].x, circumcenters[i].y, circumcenters[i].z );*/
+        /*printf("Circumcenter %i: %f, %f, %f\n", i, circumcenters[i].x, circumcenters[i].y, circumcenters[i].z );*/
     }
 }
 
@@ -72,4 +73,39 @@ __global__ void cleap_kernel_voronoi_edges( float4* vertex_data, float4* externa
     }
 }
 
+template<unsigned int block_size>
+__global__ void cleap_kernel_voronoi_edges_index( int3 *edges_index, int2 *edges_n, int2 *circumcenters_edges_n, int edges_count){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if( i<edges_count ) {
+        int val;
+        val = atomicExch(&((edges_index[circumcenters_edges_n[i].x]).x), i );
+        if(val != -1){
+            val = atomicExch(&((edges_index[circumcenters_edges_n[i].x])).y, val );
+            if(val != -1){
+                val = atomicExch(&((edges_index[circumcenters_edges_n[i].x])).z, val );
+            }
+        }
+        if(edges_n[i].y != -1) {
+            val = atomicExch(&((edges_index[circumcenters_edges_n[i].y])).x, i);
+            if (val != -1) {
+                val = atomicExch(&((edges_index[circumcenters_edges_n[i].y]).y), val);
+                if (val != -1) {
+                    val = atomicExch(&((edges_index[circumcenters_edges_n[i].y]).z), val);
+                }
+            }
+        }
+        //printf("%i Edges index: %i : %i, %i, %i ; %i: %i, %i, %i\n", i,
+                //circumcenters_edges_n[i].x, edges_index[circumcenters_edges_n[i].x].x, edges_index[circumcenters_edges_n[i].x].y, edges_index[circumcenters_edges_n[i].x].z,
+               //circumcenters_edges_n[i].y, edges_index[circumcenters_edges_n[i].y].x, edges_index[circumcenters_edges_n[i].y].y, edges_index[circumcenters_edges_n[i].y].z);
+    }
+
+}
+
+template<unsigned int block_size>
+__global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, int2 *edges_n, int2 *half_edges, int edges_count) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if( i<edges_count ) {
+        
+    }
+}
 #endif
