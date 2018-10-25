@@ -63,7 +63,7 @@ __global__ void cleap_kernel_voronoi_edges( float4* vertex_data, float4* externa
             external_edges_data[edges_a[i].x/3 ] = make_float4(circumcenters[edges_a[i].x/3].x, circumcenters[edges_a[i].x/3].y, circumcenters[edges_a[i].x/3].z, 1.0);
             external_edges_data[i  + face_count] = make_float4(mid_point.x, mid_point.y, mid_point.z, mid_point.w);
             external_edges[i] = make_int2(edges_a[i].x/3 , i  + face_count);
-            printf("%i External edge (tr A, tr B): %i, void\n", i, edges_a[i].x / 3);
+            //printf("%i External edge (tr A, tr B): %i, void\n", i, edges_a[i].x / 3);
         }
         else{
             int t_index_a = edges_a[i].x/3;
@@ -137,18 +137,64 @@ __global__ void cleap_kernel_voronoi_edges_index( int3 *edges_index, int2 *edges
                 }
             }
         }
-        printf("%i Edges index: %i : %i, %i, %i ; %i: %i, %i, %i\n", i,
-                circumcenters_edges_n[i].x, edges_index[circumcenters_edges_n[i].x].x, edges_index[circumcenters_edges_n[i].x].y, edges_index[circumcenters_edges_n[i].x].z,
-               circumcenters_edges_n[i].y, edges_index[circumcenters_edges_n[i].y].x, edges_index[circumcenters_edges_n[i].y].y, edges_index[circumcenters_edges_n[i].y].z);
+        /*printf("%i Edges index: %i : %i, %i, %i ; %i: %i, %i, %i\n", i,
+         * circumcenters_edges_n[i].x, edges_index[circumcenters_edges_n[i].x].x, edges_index[circumcenters_edges_n[i].x].y, edges_index[circumcenters_edges_n[i].x].z,
+         * circumcenters_edges_n[i].y, edges_index[circumcenters_edges_n[i].y].x, edges_index[circumcenters_edges_n[i].y].y, edges_index[circumcenters_edges_n[i].y].z);*/
     }
 
 }
-/*
+
 template<unsigned int block_size>
-__global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, int2 *edges_n, int2 *half_edges, int edges_count) {
+__global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, float4 *vertex, float4 *circumcenters, float4 *external_mid_points, int2 *edges_n, int2 *edges_b, int2 *voronoi_edges, int2 *external_edges_index, int *half_edges, int2 *polygons, int edges_count) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if( i<edges_count ) {
-        int initial = edges_index[i];
+    if( i< edges_count * 2 ) {
+        int vertex_pos = -1 , vert_delaunay = -1, external_edge = edges_b[i%edges_count].x;
+        float3 circumcenter_diff, vertex_circumcenter_diff, pivot;
+
+
+        if(i < edges_count) vert_delaunay = (int) fminf ((float) edges_n[i%edges_count].x, (float) edges_n[i%edges_count].y);
+        else vert_delaunay =  (int) fmaxf((float) edges_n[i%edges_count].x, (float) edges_n[i%edges_count].y);
+
+        float4 vertex_delaunay = vertex[vert_delaunay], circumcenter_a = circumcenters[voronoi_edges[i%edges_count].x], circumcenter_b;
+
+        if(external_edge != -1) circumcenter_b = circumcenters[voronoi_edges[i%edges_count].y];
+        else  circumcenter_b = external_mid_points[external_edges_index[i%edges_count].y];
+
+        circumcenter_diff = make_float3( circumcenter_a.x - circumcenter_b.x, circumcenter_a.y - circumcenter_b.y, circumcenter_a.z - circumcenter_b.z); // A-B
+        vertex_circumcenter_diff = make_float3( circumcenter_b.x - vertex_delaunay.x, circumcenter_b.y - vertex_delaunay.y, circumcenter_b.z - vertex_delaunay.z );
+    /*
+        printf("%i extMiX X: %f Y: %f Z: %f\n", i, external_mid_points[voronoi_edges[i%edges_count].x].x, external_mid_points[voronoi_edges[i%edges_count].x].y, external_mid_points[voronoi_edges[i%edges_count].x].z);
+        printf("%i extMiY X: %f Y: %f Z: %f\n", i, external_mid_points[voronoi_edges[i%edges_count].y].x, external_mid_points[voronoi_edges[i%edges_count].y].y, external_mid_points[voronoi_edges[i%edges_count].y].z);
+        printf("%i CCA    X: %f Y: %f Z: %f\n", i, circumcenter_a.x, circumcenter_a.y, circumcenter_a.z);
+        printf("%i CCB    X: %f Y: %f Z: %f\n", i, circumcenter_b.x, circumcenter_b.y, circumcenter_b.z);
+        printf("%i CCDIFF X: %f Y: %f Z: %f\n", i, circumcenter_diff.x, circumcenter_diff.y, circumcenter_diff.z);
+        printf("%i VERTCC X: %f Y: %f Z: %f\n", i, vertex_circumcenter_diff.x, vertex_circumcenter_diff.y, vertex_circumcenter_diff.z);
+        */
+        if (cleap_d_cross_product(circumcenter_diff, vertex_circumcenter_diff).z > 0) {
+            if(external_edge == -1){
+                atomicExch(&(polygons[i].y), i);
+                printf("%i Este debería ser next->null\n", i);
+            }
+            vertex_pos = edges_n[i % edges_count].y;
+            pivot = make_float3(circumcenter_b.x, circumcenter_b.y, circumcenter_b.z);
+        }
+        else{
+            if(external_edge == -1){
+                atomicExch(&(polygons[i].y), i);
+                printf("%i Este debería tener un next y ser inicial\n", i);
+            }
+            vertex_pos = edges_n[i % edges_count].x;
+            pivot = make_float3(circumcenter_a.x, circumcenter_a.y, circumcenter_a.z);
+            circumcenter_diff = make_float3(-circumcenter_diff.x, -circumcenter_diff.y, -circumcenter_diff.z);
+        }
+        atomicAdd(&(polygons[vertex_pos].x),1);
+        printf("%i Vertice %i,Caras: %i, inicial: %i\n", i, vertex_pos,polygons[i].x, polygons[i].y);
+        //vertex_delaunay =
+        //vertex_circumcenter_diff = make_float3( pivot.x - vertex_delaunay.x, pivot.y - vertex_delaunay.y, pivot - vertex_delaunay.z );
+        //printf("%i aristas: %i\n",i, voronoi_edges[i%edges_count].x);
+        //printf("%i aristas: %i, %i\n", i, edges_n[i%edges_count].x, edges_n[i%edges_count].y);
+        printf("Arista: %i, Vertice: %i, edges_b[i/.edges_count].x: %i, i/.edges_count %i\n", i, vert_delaunay, edges_b[i%edges_count].x, i%edges_count);
+        //Tomar menor vértice para seleccionar nombre de half edge. Tomar menor índice de half edge para calcular prev
     }
-}*/
+}
 #endif
