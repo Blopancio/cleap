@@ -73,7 +73,7 @@ __global__ void cleap_kernel_voronoi_edges( float4* vertex_data, float4* externa
             //printf("%i Internal edge (tr A, tr B): %i, %i\n", i, voronoi_edges[i].x, voronoi_edges[i].y);
 
         }
-        printf("%i external %i,%i --> %f %f %f\n", i, external_edges[i].x, external_edges[i].y, external_edges_data[i+face_count].x, external_edges_data[i+face_count].y, external_edges_data[i+face_count].z);
+        //printf("%i external %i,%i --> %f %f %f\n", i, external_edges[i].x, external_edges[i].y, external_edges_data[i+face_count].x, external_edges_data[i+face_count].y, external_edges_data[i+face_count].z);
     }
 }
 
@@ -159,7 +159,8 @@ __global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, GLuint*
 
 
         atomicAdd(&(polygons[vert_delaunay].x),1);
-        if (cleap_d_cross_product(circumcenter_diff, vertex_circumcenter_diff).z >= 0) {
+        float cross = cleap_d_cross_product(circumcenter_diff, vertex_circumcenter_diff).z;
+        if (cross >= 0) {
             pivot_index = voronoi_edges[i%edges_count].x;
 
             if(external_edge == -1){
@@ -170,13 +171,6 @@ __global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, GLuint*
         }
         else {
             pivot_index = cc_b_index;
-
-            if(external_edge == -1) {
-                //printf("%i Este debería ser final\n", i);
-                half_edges[i] = -1;
-
-                return;
-            }
         }
         if(atomicExch(&(vertreservs[vert_delaunay]), i) == -1){
             atomicExch(&(polygons[vert_delaunay].y), i);
@@ -184,37 +178,27 @@ __global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, GLuint*
 
         int3 possible_edges = edges_index[pivot_index];
         //printf("%i Aristas posibles para %i son: %i (%i,%i); %i (%i,%i); %i (%i,%i)\n", i,  pivot_index, possible_edges.x, edges_n[possible_edges.x%edges_count].x, edges_n[possible_edges.x%edges_count].y, possible_edges.y, edges_n[possible_edges.y%edges_count].x, edges_n[possible_edges.y%edges_count].y, possible_edges.z, edges_n[possible_edges.z%edges_count].x, edges_n[possible_edges.z%edges_count].y);
-
-        if (possible_edges.x != i % edges_count){
-            if (edges_n[possible_edges.x].x == vert_delaunay || edges_n[possible_edges.x].y == vert_delaunay ) {
-                int next = vert_delaunay == (int) fmaxf((float)edges_n[possible_edges.x].x, (float)edges_n[possible_edges.x].y)? possible_edges.x + edges_count : possible_edges.x;
-                //printf("%i tiene de next %i\n", i, next);
-                half_edges[i] = next;
-                return;
+        if(cross < 0 && external_edge == -1) half_edges[i] = -1;
+        else {
+            if (possible_edges.x != i % edges_count &&
+                (edges_n[possible_edges.x].x == vert_delaunay || edges_n[possible_edges.x].y == vert_delaunay)) {
+                half_edges[i] = vert_delaunay ==
+                                (int) fmaxf((float) edges_n[possible_edges.x].x, (float) edges_n[possible_edges.x].y) ?
+                                possible_edges.x + edges_count : possible_edges.x;
+            } else if (possible_edges.y != i % edges_count &&
+                       (edges_n[possible_edges.y].x == vert_delaunay || edges_n[possible_edges.y].y == vert_delaunay)) {
+                half_edges[i] = vert_delaunay ==
+                                (int) fmaxf((float) edges_n[possible_edges.y].x, (float) edges_n[possible_edges.y].y) ?
+                                possible_edges.y + edges_count : possible_edges.y;
+            } else if (possible_edges.z != i % edges_count &&
+                       (edges_n[possible_edges.z].x == vert_delaunay || edges_n[possible_edges.z].y == vert_delaunay)) {
+                half_edges[i] = vert_delaunay ==
+                                (int) fmaxf((float) edges_n[possible_edges.z].x, (float) edges_n[possible_edges.z].y) ?
+                                possible_edges.z + edges_count : possible_edges.z;
             }
         }
-
-        if (possible_edges.y != i % edges_count ){
-            if (edges_n[possible_edges.y].x == vert_delaunay || edges_n[possible_edges.y].y == vert_delaunay ) {
-                int next = vert_delaunay == (int) fmaxf((float)edges_n[possible_edges.y].x, (float)edges_n[possible_edges.y].y)? possible_edges.y + edges_count : possible_edges.y ;
-                //printf("%i tiene de next %i\n", i, next);
-                half_edges[i] = next;
-                return;
-            }
-        }
-
-        if (possible_edges.z != i % edges_count ){
-            if (edges_n[possible_edges.z].x == vert_delaunay || edges_n[possible_edges.z].y == vert_delaunay ) {
-                int next = vert_delaunay == (int) fmaxf((float)edges_n[possible_edges.z].x, (float)edges_n[possible_edges.z].y)? possible_edges.z + edges_count : possible_edges.z;
-                //printf("%i tiene de next %i\n", i, next);
-                half_edges[i] = next;
-                return;
-            }
-        }
-
+        printf("HalfEdge %i --> %i\n", i, half_edges[i]);
         //printf("Edge %i: %i, %i || CircDiff: V%i - V%i || vertexDf: V%i - D%i || pivot: %i || delaunay_vertex: %i || OP: %f %f %f\n", i, edges_n[i%edges_count].x, edges_n[i%edges_count].y, voronoi_edges[i%edges_count].x, print, print, vert_delaunay, pivot_index, vert_delaunay, vertex[triangles[edges_op[i%edges_count].x]].x, vertex[triangles[edges_op[i%edges_count].x]].y, vertex[triangles[edges_op[i%edges_count].x]].z);
-
-        //TODO:REVISAR OPUESTO D:
     }
 }
 

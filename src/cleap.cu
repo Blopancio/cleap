@@ -242,7 +242,7 @@ CLEAP_RESULT cleap_sync_mesh(_cleap_mesh *m){
 
 	float4 *d_vbo_v, *d_vbo_n, *d_vbo_c;
 	GLuint *d_eab;
-	int *d_next_edges;
+	//int *d_next_edges;
 	int2 *d_voronoi, *d_external_index, *d_voronoi_polygons;
 	int3 *d_vertex_edges_index;
 
@@ -250,6 +250,8 @@ CLEAP_RESULT cleap_sync_mesh(_cleap_mesh *m){
 	int mem_size_vbo = cleap_get_vertex_count(m)*sizeof(float4);
 	int mem_size_eab = 3*cleap_get_face_count(m)*sizeof(GLuint);
 	int mem_size_edges = sizeof(int2)*cleap_get_edge_count(m);
+    int mem_size_polygons = sizeof(int2)*cleap_get_vertex_count(m);
+    //int mem_size_next_edges = sizeof(int)*cleap_get_edge_count(m)*2;
 
 	cudaGraphicsMapResources(1, &m->dm->vbo_v_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->vbo_n_cuda, 0);
@@ -258,7 +260,7 @@ CLEAP_RESULT cleap_sync_mesh(_cleap_mesh *m){
 	cudaGraphicsMapResources(1, &m->dm->voronoi_edges_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->voronoi_edges_vertex_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->voronoi_polygons_cuda, 0);
-	cudaGraphicsMapResources(1, &m->dm->next_edges_cuda, 0);
+	//cudaGraphicsMapResources(1, &m->dm->next_edges_cuda, 0);
 
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_v, &num_bytes, m->dm->vbo_v_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_n, &num_bytes, m->dm->vbo_v_cuda);
@@ -267,7 +269,7 @@ CLEAP_RESULT cleap_sync_mesh(_cleap_mesh *m){
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_voronoi, &num_bytes, m->dm->voronoi_edges_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_vertex_edges_index, &num_bytes, m->dm->voronoi_edges_vertex_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_voronoi_polygons, &num_bytes, m->dm->voronoi_polygons_cuda);
-	cudaGraphicsResourceGetMappedPointer( (void**)&d_next_edges, &num_bytes, m->dm->next_edges_cuda);
+	//cudaGraphicsResourceGetMappedPointer( (void**)&d_next_edges, &num_bytes, m->dm->next_edges_cuda);
     if(m->external_edge) cudaGraphicsResourceGetMappedPointer( (void**)&d_external_index, &num_bytes, m->dm->external_edges_index_cuda);
 
 	cudaMemcpy( m->vnc_data.v, d_vbo_v, mem_size_vbo, cudaMemcpyDeviceToHost );
@@ -276,8 +278,8 @@ CLEAP_RESULT cleap_sync_mesh(_cleap_mesh *m){
 	cudaMemcpy( m->triangles, d_eab, mem_size_eab, cudaMemcpyDeviceToHost );
 	cudaMemcpy( m->voronoi_edges_data, d_voronoi, mem_size_edges, cudaMemcpyDeviceToHost );
     cudaMemcpy( m->voronoi_edges_index_vertex, d_vertex_edges_index, mem_size_edges, cudaMemcpyDeviceToHost );
-	cudaMemcpy( m->voronoi_polygons_data, d_voronoi_polygons, mem_size_edges, cudaMemcpyDeviceToHost );
-	cudaMemcpy( m->next_edges, d_next_edges, mem_size_edges, cudaMemcpyDeviceToHost );
+	cudaMemcpy( m->voronoi_polygons_data, d_voronoi_polygons, mem_size_polygons, cudaMemcpyDeviceToHost );
+	//cudaMemcpy( m->next_edges, d_next_edges, mem_size_next_edges, cudaMemcpyDeviceToHost );
     if(m->external_edge) cudaMemcpy( m->external_edges_index_data, d_external_index, mem_size_edges, cudaMemcpyDeviceToHost );
 
 	cudaGraphicsUnmapResources(1, &m->dm->vbo_v_cuda, 0);
@@ -287,7 +289,7 @@ CLEAP_RESULT cleap_sync_mesh(_cleap_mesh *m){
 	cudaGraphicsUnmapResources(1, &m->dm->voronoi_edges_cuda, 0);
 	cudaGraphicsUnmapResources(1, &m->dm->voronoi_edges_vertex_cuda, 0);
 	cudaGraphicsUnmapResources(1, &m->dm->voronoi_polygons_cuda, 0);
-	cudaGraphicsUnmapResources(1, &m->dm->next_edges_cuda, 0);
+	//cudaGraphicsUnmapResources(1, &m->dm->next_edges_cuda, 0);
 
 	cudaMemcpy( m->edge_data.n, m->dm->d_edges_n, mem_size_edges, cudaMemcpyDeviceToHost );
 	cudaMemcpy( m->edge_data.a, m->dm->d_edges_a, mem_size_edges, cudaMemcpyDeviceToHost );
@@ -295,8 +297,8 @@ CLEAP_RESULT cleap_sync_mesh(_cleap_mesh *m){
 	cudaMemcpy( m->edge_data.op, m->dm->d_edges_op, mem_size_edges, cudaMemcpyDeviceToHost );
     cudaMemcpy( m->voronoi_edges_data, m->dm->voronoi_edges, mem_size_edges, cudaMemcpyDeviceToHost );
     cudaMemcpy( m->voronoi_edges_index_vertex, m->dm->voronoi_edges_vertex_index, mem_size_edges, cudaMemcpyDeviceToHost );
-	cudaMemcpy( m->voronoi_polygons_data, m->dm->voronoi_polygons, mem_size_edges, cudaMemcpyDeviceToHost );
-	cudaMemcpy( m->next_edges, m->dm->next_edges, mem_size_edges, cudaMemcpyDeviceToHost );
+	cudaMemcpy( m->voronoi_polygons_data, m->dm->voronoi_polygons, mem_size_polygons, cudaMemcpyDeviceToHost );
+	//cudaMemcpy( m->next_edges, m->dm->next_edges, mem_size_next_edges, cudaMemcpyDeviceToHost );
     if(m->external_edge)  cudaMemcpy( m->external_edges_index_data, m->dm->external_edges_index, mem_size_edges, cudaMemcpyDeviceToHost );
 
 	return CLEAP_SUCCESS;
@@ -310,11 +312,14 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
 	float4 *d_vbo_v, *d_vbo_n, *d_vbo_c, *d_external_edges, *d_circumcenter;
 	GLuint *d_eab;
     int2 *d_polygons, *d_external_edges_index;
+    //int *d_half_edges;
+
 	float4 *h_vbo_v, *h_vbo_n, *h_vbo_c, *h_external_edges, *h_circumcenter;
 	GLuint *h_eab;
     int2 *h_polygons, *h_external_edges_index ;
+    //int *h_half_edges;
 
-    int *d_half_edges, *h_half_edges;
+
 	int *mid_point_to_vertex_list, *h_external_edges_count, count=0;
 
 	h_vbo_v = (float4*)malloc(cleap_get_vertex_count(m)*sizeof(float4));
@@ -326,11 +331,12 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
 	h_external_edges = (float4*)malloc(cleap_get_vertex_count(m)*sizeof(float4));
     h_external_edges_index = (int2*)malloc(cleap_get_edge_count(m)*4*sizeof(int));
 	h_circumcenter = (float4*)malloc(cleap_get_face_count(m)*sizeof(float4));
-    h_half_edges = (int*)malloc(cleap_get_edge_count(m)*2*sizeof(int));
+    //h_half_edges = (int*)malloc(cleap_get_edge_count(m)*2*sizeof(int));
 
 	h_external_edges_count = (int*)malloc(sizeof(int));
     mid_point_to_vertex_list = (int*)malloc(sizeof(int)*cleap_get_edge_count(m));
 
+    //for( int i=0; i < 2* cleap_get_edge_count(m); i++) h_half_edges[i] = 0;
 	size_t num_bytes=0;
 	int mem_size_vbo = cleap_get_vertex_count(m)*sizeof(float4);
 	int mem_size_eab = 3*cleap_get_face_count(m)*sizeof(GLuint);
@@ -338,6 +344,7 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
     int mem_size_ext_edges_v = 2*cleap_get_edge_count(m)*sizeof(float4);
     int mem_size_ext_edges_i = 2*cleap_get_edge_count(m)*sizeof(int);
 	int mem_size_circumcenter = cleap_get_face_count(m)*sizeof(float4);
+    //int mem_size_half_edges = cleap_get_edge_count(m)*2*sizeof(int);
 
     cudaMemcpy( h_external_edges_count, m->dm->d_extedgescount, sizeof(int), cudaMemcpyDeviceToHost );
 
@@ -350,6 +357,7 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
     cudaGraphicsMapResources(1, &m->dm->external_edges_vertex_cuda, 0);
     cudaGraphicsMapResources(1, &m->dm->external_edges_index_cuda, 0);
 	cudaGraphicsMapResources(1, &m->dm->circumcenters_cuda, 0);
+    //cudaGraphicsMapResources(1, &m->dm->next_edges_cuda, 0);
 
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_v, &num_bytes, m->dm->vbo_v_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_vbo_n, &num_bytes, m->dm->vbo_v_cuda);
@@ -358,7 +366,7 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
     cudaGraphicsResourceGetMappedPointer( (void**)&d_external_edges, &num_bytes, m->dm->external_edges_vertex_cuda);
     cudaGraphicsResourceGetMappedPointer( (void**)&d_external_edges_index, &num_bytes, m->dm->external_edges_index_cuda);
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_circumcenter, &num_bytes, m->dm->circumcenters_cuda);
-    cudaGraphicsResourceGetMappedPointer( (void**)&d_half_edges, &num_bytes, m->dm->next_edges_cuda);
+    //cudaGraphicsResourceGetMappedPointer( (void**)&d_half_edges, &num_bytes, m->dm->next_edges_cuda);
 
 	cudaGraphicsResourceGetMappedPointer( (void**)&d_eab, &num_bytes, m->dm->eab_cuda);
 
@@ -372,7 +380,7 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
     cudaMemcpy( h_external_edges, d_external_edges, mem_size_ext_edges_v, cudaMemcpyDeviceToHost );
     cudaMemcpy( h_external_edges_index, d_external_edges_index, mem_size_ext_edges_i, cudaMemcpyDeviceToHost );
 	cudaMemcpy( h_circumcenter, d_circumcenter, mem_size_circumcenter, cudaMemcpyDeviceToHost );
-    cudaMemcpy( h_half_edges, d_half_edges, mem_size_ext_edges_i, cudaMemcpyDeviceToHost );
+    //cudaMemcpy( h_half_edges, d_half_edges, mem_size_half_edges, cudaMemcpyDeviceToHost );
 
 	cudaGraphicsUnmapResources(1, &m->dm->vbo_v_cuda, 0);
 	cudaGraphicsUnmapResources(1, &m->dm->vbo_n_cuda, 0);
@@ -382,7 +390,7 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
     cudaGraphicsUnmapResources(1, &m->dm->external_edges_vertex_cuda, 0);
     cudaGraphicsUnmapResources(1, &m->dm->external_edges_index_cuda, 0);
 	cudaGraphicsUnmapResources(1, &m->dm->circumcenters_cuda, 0);
-    cudaGraphicsUnmapResources(1, &m->dm->next_edges_cuda, 0);
+    //cudaGraphicsUnmapResources(1, &m->dm->next_edges_cuda, 0);
 
     for(int i=0; i<cleap_get_edge_count(m); i++){
         if(h_external_edges_index[i].x == h_external_edges_index[i].y)
@@ -401,19 +409,24 @@ void cleap_voronoi_print_mesh( _cleap_mesh *m ){
 	for(int i=0; i<cleap_get_edge_count(m); i++){
 		if(mid_point_to_vertex_list[i] != -1)
 			printf("%f %f %f\n", h_external_edges[i+cleap_get_face_count(m)].x, h_external_edges[i+cleap_get_face_count(m)].y, h_external_edges[i+cleap_get_face_count(m)].z);
+	}/*
+	printf("HALF EDGES\n");
+	for(int i=0; i< 2*cleap_get_edge_count(m); i++){
+	    printf("%i --> %i\n", i, h_half_edges[i]);
 	}
-	/*for( int i=0; i<cleap_get_vertex_count(m); i++ ){
+
+    for( int i=0; i<cleap_get_vertex_count(m); i++ ) {
         int initial = h_polygons[i].y;
         printf("%i ", h_polygons[i].x);
         printf("%i ", initial);
         int j = h_half_edges[initial];
-		printf("%i ", j);
+        printf("%i ", j);
         while(j!= -1 || j != initial){
-            printf("%i ", j);
-            j = h_half_edges[j];
-        }
+              printf("%i ", j);
+              j = h_half_edges[j];
+          }
         printf("\n");
-	}*/
+    }*/
 }
 
 void cleap_print_mesh( _cleap_mesh *m ){
@@ -572,6 +585,7 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 	}
 	m->circumcenters = 1;
     m->voronoi_edge = 1;
+    m->external_edge = 1;
     cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, d_vertex_edges_index, cleap_get_face_count(m));
 
     cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, m->dm->d_trireservs, external_edges, cleap_get_edge_count(m), cleap_get_face_count(m));
@@ -583,8 +597,10 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
     _cleap_init_array_int(m->dm->d_vertreservs, cleap_get_vertex_count(m),-1);
     cleap_kernel_voronoi_edges_next_prev<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, d_eab, d_vbo_v, d_circumcenters, d_external_vertex, m->dm->d_edges_n, m->dm->d_edges_b, m->dm->d_edges_op, d_voronoi, d_external_index, d_next_edges, m->dm->d_vertreservs, d_voronoi_polygons, cleap_get_edge_count(m), cleap_get_face_count(m));
 
-    cudaThreadSynchronize();
-    cleap_voronoi_print_mesh(m);
+    //cudaThreadSynchronize();
+    cleap_sync_mesh(m);
+    //cleap_voronoi_print_mesh(m);
+
     //printf("computed in %.5g[s] (%i iterations)\n", _cleap_stop_timer(), it );
 	//printf("%.6f\n", _cleap_stop_timer());
 	//!Unbind Texture
@@ -683,8 +699,8 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 	cleap_kernel_voronoi_edges_index<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, m->dm->d_edges_n, d_voronoi, external_edges, m->dm->d_trireservs, cleap_get_edge_count(m));
     cudaThreadSynchronize();
 
-	_cleap_init_array_int(m->dm->d_vertreservs, cleap_get_vertex_count(m),-1);
-    cleap_kernel_voronoi_edges_next_prev<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, d_eab, d_vbo_v, d_circumcenters, d_external_vertex, m->dm->d_edges_n, m->dm->d_edges_b, m->dm->d_edges_op, d_voronoi, d_external_index, d_next_edges, m->dm->d_vertreservs, d_voronoi_polygons, cleap_get_edge_count(m), cleap_get_face_count(m));
+	//_cleap_init_array_int(m->dm->d_vertreservs, cleap_get_vertex_count(m),-1);
+    //cleap_kernel_voronoi_edges_next_prev<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, d_eab, d_vbo_v, d_circumcenters, d_external_vertex, m->dm->d_edges_n, m->dm->d_edges_b, m->dm->d_edges_op, d_voronoi, d_external_index, d_next_edges, m->dm->d_vertreservs, d_voronoi_polygons, cleap_get_edge_count(m), cleap_get_face_count(m));
 
     cudaThreadSynchronize();
     cleap_voronoi_print_mesh(m);
@@ -1005,8 +1021,10 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 
 	// CLEAP::DEVICE_LOAD:: malloc mesh and aux arrays
 	size_t edge_bytes_size  = sizeof(int2)* cleap_get_edge_count(m);
+    size_t next_edge_bytes_size  = sizeof(int)* cleap_get_edge_count(m) *2;
 	size_t face_bytes_size = sizeof(int)*cleap_get_face_count(m);
     size_t vertex_edges_bytes_size = sizeof(int3)*cleap_get_face_count(m);
+    size_t polygons_bytes_size = sizeof(int2)*cleap_get_vertex_count(m);
 	cudaMalloc( (void**) &dmesh->d_edges_n , edge_bytes_size );
 	cudaMalloc( (void**) &dmesh->d_edges_a , edge_bytes_size );
 	cudaMalloc( (void**) &dmesh->d_edges_b , edge_bytes_size );
@@ -1018,6 +1036,8 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	cudaMalloc( (void**) &dmesh->d_trireservs, face_bytes_size );
 	cudaMalloc( (void**) &dmesh->d_edgesreservs, edge_bytes_size );
     cudaMalloc( (void**) &dmesh->d_vertreservs, vertex_edges_bytes_size );
+    cudaMalloc( (void**) &dmesh->next_edges, next_edge_bytes_size );
+    cudaMalloc( (void**) &dmesh->voronoi_polygons, polygons_bytes_size );
 
 	// CLEAP::DEVICE_LOAD:: memcpy mesh and aux arrays
 	cudaMemcpy( dmesh->d_edges_n, m->edge_data.n , edge_bytes_size, cudaMemcpyHostToDevice );
@@ -1027,8 +1047,8 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	cudaMemcpy( dmesh->voronoi_edges, m->voronoi_edges_data , edge_bytes_size, cudaMemcpyHostToDevice );
     cudaMemcpy( dmesh->voronoi_edges_vertex_index, m->voronoi_edges_index_vertex , vertex_edges_bytes_size, cudaMemcpyHostToDevice );
     cudaMemcpy( dmesh->external_edges_index, m->external_edges_index_data , edge_bytes_size, cudaMemcpyHostToDevice );
-	cudaMemcpy( dmesh->voronoi_polygons, m->voronoi_polygons_data , face_bytes_size*2, cudaMemcpyHostToDevice );
-	cudaMemcpy( dmesh->next_edges, m->next_edges , edge_bytes_size, cudaMemcpyHostToDevice );
+	cudaMemcpy( dmesh->voronoi_polygons, m->voronoi_polygons_data , polygons_bytes_size, cudaMemcpyHostToDevice );
+	cudaMemcpy( dmesh->next_edges, m->next_edges , next_edge_bytes_size, cudaMemcpyHostToDevice );
 
 	// CLEAP::DEVICE_LOAD:: add new device mesh entry into the array of device meshes
 	// CLEAP::DEVICE_LOAD:: link main mesh with device_mesh id;
