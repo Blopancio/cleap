@@ -31,9 +31,9 @@ struct cleap_edge_data{
 struct cleap_device_mesh {
 	struct cudaGraphicsResource *vbo_v_cuda, *vbo_n_cuda, *vbo_c_cuda, *eab_cuda, *circumcenters_cuda, *voronoi_edges_cuda, *external_edges_index_cuda, *external_edges_vertex_cuda, *voronoi_edges_vertex_cuda, *voronoi_polygons_cuda, *next_edges_cuda;
 	GLuint vbo_v, vbo_n, vbo_c, eab, circumcenters, external_edge_vertex, voronoi_edge, external_edge_index, voronoi_edges_vertex, voronoi_polygons_gluint, next_edges_gluint;
-	int2 *d_edges_n, *d_edges_a, *d_edges_b, *d_edges_op, *voronoi_edges, *external_edges_index, *voronoi_polygons;
+	int2 *d_edges_n, *d_edges_a, *d_edges_b, *d_edges_op, *voronoi_edges, *external_edges_index, *voronoi_polygons, *next_edges;
 	int3 *voronoi_edges_vertex_index;
-	int *d_trirel, *d_trireservs, *d_listo, *d_edgesreservs, *d_vertreservs, *d_extedgescount, *next_edges;
+	int *d_trirel, *d_trireservs, *d_listo, *d_edgesreservs, *d_vertreservs, *d_extedgescount;
 	CLEAP_RESULT status;
 };
 
@@ -44,13 +44,14 @@ struct _cleap_mesh {
 		int2* voronoi_edges_data;
         int2* external_edges_index_data; //TESIS
         int2* voronoi_polygons_data;
+        int2* next_edges;
         int3* voronoi_edges_index_vertex;
 		GLuint* triangles;
         float4* circumcenters_data;
         float4* external_edges_vertex_data; //TESIS
 		int vertex_count, edge_count, face_count, external_edge_count;
 		float3 max_coords, min_coords;
-		int processed_edges, wireframe, solid, circumcenters, voronoi_edge, external_edge, *next_edges; //TESIS
+		int processed_edges, wireframe, solid, circumcenters, voronoi_edge, external_edge; //TESIS
 		cleap_device_mesh *dm;
 		CLEAP_RESULT status;	// important flag!!
 };
@@ -72,6 +73,7 @@ extern "C" {
 void 	_cleap_init_array_int(int* h_array, int size, int value);
 void 	_cleap_init_device_array_int(int* d_array, int length, int value);
 void 	_cleap_init_device_dual_arrays_int(int* d_array1, int* d_array2, int length, int value, dim3 &dimBlock, dim3 &dimGrid);
+void 	_cleap_init_device_dual_arrays_int2(int2* d_array, int length, int value, dim3 &dimBlock, dim3 &dimGrid);
 void 	_cleap_print_gpu_mem();
 int  	_cleap_choose_best_gpu_id();
 void 	_cleap_print_splash();

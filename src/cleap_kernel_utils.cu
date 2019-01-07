@@ -50,6 +50,14 @@ __global__ void cleap_kernel_init_device_arrays_dual(int* array1, int* array2, i
         array2[i] = value;
     }
 }
+__global__ void cleap_kernel_init_device_arrays_dual_int2(int2* array, int size, int value){
+	unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if( i<size ){
+		array[i].x = value;
+		array[i].y = value;
+	}
+}
+
 __device__ float cleap_d_dot_product( float3 u, float3 v ){
         return u.x*v.x + u.y*v.y + u.z*v.z;
 }

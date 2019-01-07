@@ -73,7 +73,8 @@ __global__ void cleap_kernel_voronoi_edges( float4* vertex_data, float4* externa
             //printf("%i Internal edge (tr A, tr B): %i, %i\n", i, voronoi_edges[i].x, voronoi_edges[i].y);
 
         }
-        //printf("%i external %i,%i --> %f %f %f\n", i, external_edges[i].x, external_edges[i].y, external_edges_data[i+face_count].x, external_edges_data[i+face_count].y, external_edges_data[i+face_count].z);
+        //printf("ext_data: %i --> %f %f %f,  %i --> %f %f %f\n", edges_a[i].x/3, external_edges_data[edges_a[i].x/3].x, external_edges_data[edges_a[i].x/3].y, external_edges_data[edges_a[i].x/3].z, i  + face_count ,external_edges_data[i+face_count].x, external_edges_data[i+face_count].y, external_edges_data[i+face_count].z );
+        //printf("%i external %i,%i\n", i, external_edges[i].x, external_edges[i].y, external_edges_data[i+face_count].x, external_edges_data[i+face_count].y, external_edges_data[i+face_count].z);
     }
 }
 
@@ -115,7 +116,7 @@ __global__ void cleap_kernel_voronoi_edges_index( int3 *edges_index, int2 *edges
 }
 
 template<unsigned int block_size>
-__global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, GLuint* triangles, float4 *vertex, float4 *circumcenters, float4 *external_mid_points, int2 *edges_n, int2 *edges_b, int2 *edges_op, int2 *voronoi_edges, int2 *external_edges_index, int *half_edges, int *vertreservs, int2 *polygons, int edges_count, int circumcenters_count) {
+__global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, GLuint* triangles, float4 *vertex, float4 *circumcenters, float4 *external_mid_points, int2 *edges_n, int2 *edges_b, int2 *edges_op, int2 *voronoi_edges, int2 *external_edges_index, int2 *half_edges, int *vertreservs, int2 *polygons, int edges_count, int circumcenters_count) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if( i< edges_count * 2 ) {
         int vert_delaunay = -1, external_edge = edges_b[i%edges_count].x, pivot_index, isCircumcenterInside = 0, reverse_flag = 0;
@@ -175,31 +176,35 @@ __global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, GLuint*
         if(atomicExch(&(vertreservs[vert_delaunay]), i) == -1){
             atomicExch(&(polygons[vert_delaunay].y), i);
         }
-
+        half_edges[i].x = vert_delaunay;
         int3 possible_edges = edges_index[pivot_index];
         //printf("%i Aristas posibles para %i son: %i (%i,%i); %i (%i,%i); %i (%i,%i)\n", i,  pivot_index, possible_edges.x, edges_n[possible_edges.x%edges_count].x, edges_n[possible_edges.x%edges_count].y, possible_edges.y, edges_n[possible_edges.y%edges_count].x, edges_n[possible_edges.y%edges_count].y, possible_edges.z, edges_n[possible_edges.z%edges_count].x, edges_n[possible_edges.z%edges_count].y);
-        if(cross < 0 && external_edge == -1) half_edges[i] = -1;
+        if(cross < 0 && external_edge == -1) {
+            half_edges[i].y = -1;
+            atomicAdd(&(polygons[vert_delaunay].x),1);
+        }
         else {
             if (possible_edges.x != i % edges_count &&
                 (edges_n[possible_edges.x].x == vert_delaunay || edges_n[possible_edges.x].y == vert_delaunay)) {
-                half_edges[i] = vert_delaunay ==
+                half_edges[i].y = vert_delaunay ==
                                 (int) fmaxf((float) edges_n[possible_edges.x].x, (float) edges_n[possible_edges.x].y) ?
                                 possible_edges.x + edges_count : possible_edges.x;
             } else if (possible_edges.y != i % edges_count &&
                        (edges_n[possible_edges.y].x == vert_delaunay || edges_n[possible_edges.y].y == vert_delaunay)) {
-                half_edges[i] = vert_delaunay ==
+                half_edges[i].y = vert_delaunay ==
                                 (int) fmaxf((float) edges_n[possible_edges.y].x, (float) edges_n[possible_edges.y].y) ?
                                 possible_edges.y + edges_count : possible_edges.y;
             } else if (possible_edges.z != i % edges_count &&
                        (edges_n[possible_edges.z].x == vert_delaunay || edges_n[possible_edges.z].y == vert_delaunay)) {
-                half_edges[i] = vert_delaunay ==
+                half_edges[i].y = vert_delaunay ==
                                 (int) fmaxf((float) edges_n[possible_edges.z].x, (float) edges_n[possible_edges.z].y) ?
                                 possible_edges.z + edges_count : possible_edges.z;
             }
         }
-        printf("HalfEdge %i --> %i\n", i, half_edges[i]);
         //printf("Edge %i: %i, %i || CircDiff: V%i - V%i || vertexDf: V%i - D%i || pivot: %i || delaunay_vertex: %i || OP: %f %f %f\n", i, edges_n[i%edges_count].x, edges_n[i%edges_count].y, voronoi_edges[i%edges_count].x, print, print, vert_delaunay, pivot_index, vert_delaunay, vertex[triangles[edges_op[i%edges_count].x]].x, vertex[triangles[edges_op[i%edges_count].x]].y, vertex[triangles[edges_op[i%edges_count].x]].z);
     }
 }
+
+
 
 #endif

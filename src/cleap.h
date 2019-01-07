@@ -23,6 +23,9 @@
 //										//
 //////////////////////////////////////////////////////////////////////////////////
 
+#include <vector_types.h>
+#include <vector_functions.h>
+
 #ifndef CLEAP_H
 #define CLEAP_H
 
@@ -122,9 +125,13 @@ extern "C" {
 	 * @return <tt>int >= 0</tt>.
 	 */
 	int cleap_get_face_count(cleap_mesh *m);
-	/** Prints the mesh vertex, edge and face data.
+	/**
 	 * @param m a pointer of type cleap_mesh.
 	 */
+	int index_to_vertex(cleap_mesh *m, int2 *voronoi_edges, int *offsets, int index, int is_initial, int prev_vertex);
+	/** Prints the mesh vertex, edge and face data.
+	* @param m a pointer of type cleap_mesh.
+	*/
 	void cleap_print_mesh(cleap_mesh *m);
 	/** Gets the x coordinate of the center of the mesh's bounding sphere.
 	 * @param m a pointer of type cleap_mesh.
