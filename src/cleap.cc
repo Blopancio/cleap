@@ -219,6 +219,7 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->status = CLEAP_SUCCESS;
 	m->wireframe = 0;
 	m->solid = 1;
+	m->voronoi = 0;
 	m->circumcenters = 0; //TESIS
 	m->circumcenters_draw = 0;
 	m->voronoi_edge = 0; //TESIS

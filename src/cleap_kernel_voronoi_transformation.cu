@@ -183,7 +183,7 @@ __global__ void cleap_kernel_voronoi_edges_next_prev( int3 *edges_index, GLuint*
         }
         half_edges[i].x = vert_delaunay;
         int3 possible_edges = edges_index[pivot_index];
-        printf("%i Aristas posibles para %i son: %i (%i,%i); %i (%i,%i); %i (%i,%i)\n", i,  pivot_index, possible_edges.x, edges_n[possible_edges.x%edges_count].x, edges_n[possible_edges.x%edges_count].y, possible_edges.y, edges_n[possible_edges.y%edges_count].x, edges_n[possible_edges.y%edges_count].y, possible_edges.z, edges_n[possible_edges.z%edges_count].x, edges_n[possible_edges.z%edges_count].y);
+//        printf("%i Aristas posibles para %i son: %i (%i,%i); %i (%i,%i); %i (%i,%i)\n", i,  pivot_index, possible_edges.x, edges_n[possible_edges.x%edges_count].x, edges_n[possible_edges.x%edges_count].y, possible_edges.y, edges_n[possible_edges.y%edges_count].x, edges_n[possible_edges.y%edges_count].y, possible_edges.z, edges_n[possible_edges.z%edges_count].x, edges_n[possible_edges.z%edges_count].y);
 
         if(cross < 0 && external_edge == -1) {
             half_edges[i].y = -1;

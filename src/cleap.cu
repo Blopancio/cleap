@@ -67,11 +67,18 @@ int cleap_mesh_is_wireframe(_cleap_mesh *m){
 int cleap_mesh_is_solid(_cleap_mesh *m){
 	return m->solid;
 }
+int cleap_mesh_is_voronoi(_cleap_mesh *m){
+	if( m-> circumcenters && m->voronoi_edge ) return m->voronoi;
+	return 0;
+}
 void cleap_mesh_set_wireframe(_cleap_mesh *m, int w){
 	m->wireframe = w;
 }
 void cleap_mesh_set_solid(_cleap_mesh *m, int s){
 	m->solid = s;
+}
+void cleap_mesh_set_voronoi(_cleap_mesh *m, int v){
+    m->voronoi = v;
 }
 
 float cleap_get_bsphere_r(_cleap_mesh *m){
@@ -194,7 +201,7 @@ CLEAP_RESULT cleap_render_mesh(_cleap_mesh *m){
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			glDrawElements(GL_TRIANGLES, cleap_get_face_count(m)*3, GL_UNSIGNED_INT, BUFFER_OFFSET(0));
 		}
-        if (m->circumcenters) { //TESIS
+        if (m->voronoi) { //TESIS
             glBindBuffer(GL_ARRAY_BUFFER, m->dm->circumcenters);
             glVertexPointer(3, GL_FLOAT, 4 * sizeof(float), 0);
             glDisableClientState(GL_COLOR_ARRAY);
@@ -205,8 +212,6 @@ CLEAP_RESULT cleap_render_mesh(_cleap_mesh *m){
             //glDrawElements(GL_POINTS, cleap_get_face_count(m), GL_UNSIGNED_INT, BUFFER_OFFSET(0));
             glDrawArrays(GL_POINTS, 0, cleap_get_face_count(m));//Indicar numero de objetos
             glBindBuffer(GL_ARRAY_BUFFER, 0);
-        }
-		if (m->voronoi_edge){ //TESIS
             glBindBuffer(GL_ARRAY_BUFFER, m->dm->circumcenters);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m->dm->voronoi_edge);
             glDisableClientState(GL_COLOR_ARRAY);
@@ -602,8 +607,8 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 	cleap_kernel_voronoi_edges_next_prev<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, d_eab, d_vbo_v, d_circumcenters, d_external_vertex, m->dm->d_edges_n, m->dm->d_edges_b, m->dm->d_edges_op, d_voronoi, d_external_index, d_next_edges, m->dm->d_vertreservs, d_voronoi_polygons, cleap_get_edge_count(m), cleap_get_face_count(m));
 
     cudaThreadSynchronize();
-
-    cleap_voronoi_print_mesh(m);
+	printf("computed in %.5g[s]\n", _cleap_stop_timer() );
+    //cleap_voronoi_print_mesh(m);
 
     //printf("computed in %.5g[s] (%i iterations)\n", _cleap_stop_timer(), it );
 	//printf("%.6f\n", _cleap_stop_timer());
@@ -688,7 +693,6 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
 
     m->circumcenters = 1;
     m->voronoi_edge = 1;
-
     cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, d_vertex_edges_index, cleap_get_face_count(m));
 
     cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, m->dm->d_trireservs, external_edges, cleap_get_edge_count(m), cleap_get_face_count(m));
@@ -702,6 +706,7 @@ int cleap_delaunay_transformation_interactive(_cleap_mesh *m, int mode){
     cleap_kernel_voronoi_edges_next_prev<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, d_eab, d_vbo_v, d_circumcenters, d_external_vertex, m->dm->d_edges_n, m->dm->d_edges_b, m->dm->d_edges_op, d_voronoi, d_external_index, d_next_edges, m->dm->d_vertreservs, d_voronoi_polygons, cleap_get_edge_count(m), cleap_get_face_count(m));
 
     cudaThreadSynchronize();
+    printf("computed in %.5g[s]\n", _cleap_stop_timer() );
     //cleap_voronoi_print_mesh(m);
 
     if( h_listo[0] ){

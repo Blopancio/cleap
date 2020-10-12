@@ -153,6 +153,11 @@ extern "C" {
 	 * @return <tt>float >= 0</tt>.
 	 */
 	float cleap_get_bsphere_r(cleap_mesh *m);
+	/** Informs if the mesh is on voronoi mode or not.
+	 * @param m a pointer of type cleap_mesh.
+	 * @return <tt>1</tt> if the mesh is on voronoi mode, otherwise <tt>0</tt>.
+	 */
+	int cleap_mesh_is_voronoi(cleap_mesh *v);
 	/** Informs if the mesh is on wireframe mode or not.
 	 * @param m a pointer of type cleap_mesh.
 	 * @return <tt>1</tt> if the mesh is on wireframe mode, otherwise <tt>0</tt>.
@@ -166,6 +171,11 @@ extern "C" {
 	/** Sets the mesh's wireframe mode to enabled or disabled.
 	 * @param m a pointer of type cleap_mesh.
 	 * @param w the wireframe mode, <tt>1</tt> or <tt>0</tt>.
+	 */
+	void cleap_mesh_set_voronoi(cleap_mesh *m, int v);
+	/** Sets the mesh's voronoi mode to enabled or disabled.
+	 * @param m a pointer of type cleap_mesh.
+	 * @param v the voronoi mode, <tt>1</tt> or <tt>0</tt>.
 	 */
 	void cleap_mesh_set_wireframe(cleap_mesh *m, int w);
 	/** Sets the mesh's solid mode to enabled or disabled.

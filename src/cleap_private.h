@@ -51,7 +51,7 @@ struct _cleap_mesh {
         float4* external_edges_vertex_data; //TESIS
 		int vertex_count, edge_count, face_count, external_edge_count;
 		float3 max_coords, min_coords;
-		int processed_edges, wireframe, solid, circumcenters, circumcenters_draw, voronoi_edge, external_edge; //TESIS
+		int processed_edges, voronoi, wireframe, solid, circumcenters, circumcenters_draw, voronoi_edge, external_edge; //TESIS
 		cleap_device_mesh *dm;
 		CLEAP_RESULT status;	// important flag!!
 };
