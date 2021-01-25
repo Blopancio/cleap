@@ -75,11 +75,14 @@ void 	_cleap_init_device_array_int(int* d_array, int length, int value);
 void 	_cleap_init_device_dual_arrays_int(int* d_array1, int* d_array2, int length, int value, dim3 &dimBlock, dim3 &dimGrid);
 void 	_cleap_init_device_dual_arrays_int2(int2* d_array, int length, int value, dim3 &dimBlock, dim3 &dimGrid);
 void 	_cleap_print_gpu_mem();
+int 	_cleap_gpu_mem();
 int  	_cleap_choose_best_gpu_id();
 void 	_cleap_print_splash();
 void 	_cleap_init_cuda();
 void 	_cleap_start_timer();
+void 	_cleap_start_timer2();
 double 	_cleap_stop_timer();
+double 	_cleap_stop_timer2();
 void 	_cleap_reset_minmax(_cleap_mesh* m);
 
 CLEAP_RESULT _cleap_init_glew();

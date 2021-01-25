@@ -52,7 +52,7 @@
 int CLEAP_CUDA_BLOCKSIZE = 256;
 
 // timer structures
-struct timeval t_ini, t_fin;
+struct timeval t_ini2, t_fin2, t_ini, t_fin;
 
 // cleap author
 char CLEAP_AUTHOR[] = "Cristobal A. Navarro";
@@ -594,6 +594,8 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 	m->circumcenters = 1;
     m->voronoi_edge = 1;
     m->external_edge = 1;
+    _cleap_start_timer2();
+
     cleap_kernel_circumcenter_calculus<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_eab, d_circumcenters, d_vertex_edges_index, cleap_get_face_count(m));
 
     cleap_kernel_voronoi_edges<256><<< dimGrid, dimBlock >>>(d_vbo_v, d_external_vertex, d_voronoi, d_external_index, m->dm->d_edges_n, m->dm->d_edges_a, m->dm->d_edges_b, d_circumcenters, m->dm->d_trireservs, external_edges, cleap_get_edge_count(m), cleap_get_face_count(m));
@@ -607,9 +609,9 @@ CLEAP_RESULT cleap_delaunay_transformation(_cleap_mesh *m, int mode){
 	cleap_kernel_voronoi_edges_next_prev<256><<< dimGrid, dimBlock >>>(d_vertex_edges_index, d_eab, d_vbo_v, d_circumcenters, d_external_vertex, m->dm->d_edges_n, m->dm->d_edges_b, m->dm->d_edges_op, d_voronoi, d_external_index, d_next_edges, m->dm->d_vertreservs, d_voronoi_polygons, cleap_get_edge_count(m), cleap_get_face_count(m));
 
     cudaThreadSynchronize();
-	printf("computed in %.5g[s]\n", _cleap_stop_timer() );
+    printf("Voronoi: %.5g[s]\n", _cleap_stop_timer2() );
+	printf("Delaunay + Voronoi: %.5g[s]\n", _cleap_stop_timer() );
     //cleap_voronoi_print_mesh(m);
-
     //printf("computed in %.5g[s] (%i iterations)\n", _cleap_stop_timer(), it );
 	//printf("%.6f\n", _cleap_stop_timer());
 	//!Unbind Texture
@@ -863,9 +865,16 @@ CLEAP_RESULT cleap_save_mesh_no_sync(_cleap_mesh *m, const char *filename){
 void _cleap_start_timer(){
     gettimeofday(&t_ini, NULL); //Tiempo de Inicio
 }
+void _cleap_start_timer2(){
+    gettimeofday(&t_ini2, NULL); //Tiempo de Inicio
+}
 double _cleap_stop_timer(){
     gettimeofday(&t_fin, NULL); //Tiempo de Termino
     return (double)(t_fin.tv_sec + (double)t_fin.tv_usec/1000000) - (double)(t_ini.tv_sec + (double)t_ini.tv_usec/1000000);
+}
+double _cleap_stop_timer2(){
+    gettimeofday(&t_fin2, NULL); //Tiempo de Termino
+    return (double)(t_fin2.tv_sec + (double)t_fin2.tv_usec/1000000) - (double)(t_ini2.tv_sec + (double)t_ini2.tv_usec/1000000);
 }
 
 void _cleap_reset_minmax(_cleap_mesh* m){
@@ -903,6 +912,8 @@ CLEAP_RESULT _cleap_normalize_normals(_cleap_mesh *m){
 
 CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 
+    int ini = _cleap_gpu_mem();
+
 	// CLEAP::DEVICE_LOAD:: create instance of device_mesh struct
 	m->dm = new cleap_device_mesh();
 	cleap_device_mesh *dmesh = m->dm;
@@ -913,7 +924,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
     GLintptr next_edge_size = sizeof(int)*cleap_get_edge_count(m)*4;
     GLintptr circumcenter_size = sizeof(float)*cleap_get_face_count(m)*4;
     GLintptr voronoi_polygon_size = sizeof(int)*cleap_get_vertex_count(m)*2;
-    GLintptr external_vertex_size = sizeof(float)*4* (cleap_get_face_count(m)+ cleap_get_edge_count(m)) ;
+    GLintptr external_vertex_size = sizeof(float)*4*(cleap_get_face_count(m)+cleap_get_edge_count(m));
 
 	// CLEAP::DEVICE_LOAD:: vbo vertex data
 	glGenBuffers(1, &dmesh->vbo_v);
@@ -924,7 +935,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	err = cudaGraphicsGLRegisterBuffer(&dmesh->vbo_v_cuda, dmesh->vbo_v, cudaGraphicsMapFlagsNone);
 	if( err != cudaSuccess )
 		printf("CLEAP::device_load_mesh::cudaGraphicsRegisterBuffer::vbo_p:: %s\n", cudaGetErrorString(err));
-	
+
 	// CLEAP::DEVICE_LOAD:: vbo normal data
 	glGenBuffers(1, &dmesh->vbo_n);
 	glBindBuffer(GL_ARRAY_BUFFER, dmesh->vbo_n);
@@ -979,7 +990,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
     // CLEAP::DEVICE_LOAD:: external edges vertex data
     glGenBuffers(1, &dmesh->external_edge_vertex);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,dmesh->external_edge_vertex);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, external_vertex_size, 0, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, external_vertex_size, 0, GL_STATIC_DRAW);
     glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, external_vertex_size, m->external_edges_vertex_data);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     err = cudaGraphicsGLRegisterBuffer(&dmesh->external_edges_vertex_cuda, dmesh->external_edge_vertex, cudaGraphicsMapFlagsNone);
@@ -996,7 +1007,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
     if( err != cudaSuccess )
         printf("CLEAP::device_load_mesh::cudaGraphicsRegisterBuffer::external edges index:: %s\n", cudaGetErrorString(err));
 
-	// CLEAP::DEVICE_LOAD:: voronoi_vertex edges data
+    // CLEAP::DEVICE_LOAD:: voronoi_vertex edges data
 	glGenBuffers(1, &dmesh->voronoi_edges_vertex);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, dmesh->voronoi_edges_vertex);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, triangles_bytes_size , 0, GL_STATIC_DRAW);
@@ -1006,7 +1017,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	if( err != cudaSuccess )
 		printf("CLEAP::device_load_mesh::cudaGraphicsRegisterBuffer::voronoi edges index:: %s\n", cudaGetErrorString(err));
 
-    // CLEAP::DEVICE_LOAD:: voronoi_polygons initial edge data
+    /*// CLEAP::DEVICE_LOAD:: voronoi_polygons initial edge data
     glGenBuffers(1, &dmesh->voronoi_polygons_gluint);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, dmesh->voronoi_polygons_gluint);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, voronoi_polygon_size , 0, GL_STATIC_DRAW);
@@ -1025,7 +1036,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	err = cudaGraphicsGLRegisterBuffer(&dmesh->next_edges_cuda, dmesh->next_edges_gluint, cudaGraphicsMapFlagsNone);
 	if( err != cudaSuccess )
 		printf("CLEAP::device_load_mesh::cudaGraphicsRegisterBuffer::next edges:: %s\n", cudaGetErrorString(err));
-
+*/
 
 	// CLEAP::DEVICE_LOAD:: malloc mesh and aux arrays
 	size_t edge_bytes_size  = sizeof(int2)* cleap_get_edge_count(m);
@@ -1045,8 +1056,8 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	cudaMalloc( (void**) &dmesh->d_trireservs, face_bytes_size );
 	cudaMalloc( (void**) &dmesh->d_edgesreservs, edge_bytes_size );
     cudaMalloc( (void**) &dmesh->d_vertreservs, vertex_edges_bytes_size );
-    cudaMalloc( (void**) &dmesh->next_edges, next_edge_bytes_size );
-    cudaMalloc( (void**) &dmesh->voronoi_polygons, polygons_bytes_size );
+    //cudaMalloc( (void**) &dmesh->next_edges, next_edge_bytes_size );
+    //cudaMalloc( (void**) &dmesh->voronoi_polygons, polygons_bytes_size );
 
 	// CLEAP::DEVICE_LOAD:: memcpy mesh and aux arrays
 	cudaMemcpy( dmesh->d_edges_n, m->edge_data.n , edge_bytes_size, cudaMemcpyHostToDevice );
@@ -1056,8 +1067,8 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	cudaMemcpy( dmesh->voronoi_edges, m->voronoi_edges_data , edge_bytes_size, cudaMemcpyHostToDevice );
     cudaMemcpy( dmesh->voronoi_edges_vertex_index, m->voronoi_edges_index_vertex , vertex_edges_bytes_size, cudaMemcpyHostToDevice );
     cudaMemcpy( dmesh->external_edges_index, m->external_edges_index_data , edge_bytes_size, cudaMemcpyHostToDevice );
-	cudaMemcpy( dmesh->voronoi_polygons, m->voronoi_polygons_data , polygons_bytes_size, cudaMemcpyHostToDevice );
-	cudaMemcpy( dmesh->next_edges, m->next_edges , next_edge_bytes_size, cudaMemcpyHostToDevice );
+	//cudaMemcpy( dmesh->voronoi_polygons, m->voronoi_polygons_data , polygons_bytes_size, cudaMemcpyHostToDevice );
+	//cudaMemcpy( dmesh->next_edges, m->next_edges , next_edge_bytes_size, cudaMemcpyHostToDevice );
 
 	// CLEAP::DEVICE_LOAD:: add new device mesh entry into the array of device meshes
 	// CLEAP::DEVICE_LOAD:: link main mesh with device_mesh id;
@@ -1066,6 +1077,9 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	//printf("\n");
 	fflush(stdout);
 
+    int fin = _cleap_gpu_mem();
+    int res = fin - ini;
+    printf("Memoria: %d\n", res);
 	// CLEAP::DEVICE_LOAD:: paint mesh (green by default)
 	cleap_paint_mesh(m, 0.0f, 1.0f, 0.0f, 1.0f );
 
@@ -1075,6 +1089,7 @@ CLEAP_RESULT _cleap_device_load_mesh(_cleap_mesh* m){
 	// CLEAP::DEVICE_LOAD:: print gpu memory
 	//printf("CLEAP::");
 	//_cleap_print_gpu_mem();
+
 
 	return CLEAP_SUCCESS;
 }
@@ -1117,7 +1132,13 @@ void _cleap_init_device_dual_arrays_int2(int2* d_array, int length, int value, d
 void _cleap_print_gpu_mem(){
 	size_t free=0, total=0;
 	cudaMemGetInfo(&free, &total);
-	printf("gpu_memory_used::%iMB (%i%%)\n" , (int)((total - free)/(1024*1024)), (int)((float)(total - free)/((float)total)*100.0));
+	printf("gpu_memory_used::%i B (%i%%)\n" , (int)((total - free)), (int)((float)(total - free)/((float)total)*100.0));
+}
+
+int _cleap_gpu_mem(){
+    size_t free=0, total=0;
+    cudaMemGetInfo(&free, &total);
+    return (int)(total - free);
 }
 
 int _cleap_choose_best_gpu_id(){

@@ -136,6 +136,7 @@ CLEAP_RESULT _cleap_generate_edges_hash(_cleap_mesh *m, FILE *off, float prog, f
 
 CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 
+    _cleap_start_timer();
 	int v_count, f_count, e_count, io_val;
 	char line[255];
 	setlocale(LC_NUMERIC, "POSIX");	// IO :: necessary for other languajes.
@@ -202,7 +203,7 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
     // TESIS CLEAP:: malloc host circumcenters array
     m->circumcenters_data = (float4*)malloc(sizeof(float4)*f_count);
     // TESIS CLEAP:: malloc host circumcenters array
-    m->external_edges_vertex_data = (float4*)malloc(sizeof(float4)*f_count);
+    m->external_edges_vertex_data = (float4*)malloc(sizeof(float4)*(f_count+m->edge_count));
     // TESIS CLEAP:: malloc host voronoi edges per vertex array
     m->voronoi_edges_index_vertex = (int3*)malloc(sizeof(int3)*f_count);
     // TESIS CLEAP:: malloc host voronoi polygons
@@ -215,7 +216,7 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
     m->next_edges = (int2*)malloc(sizeof(int2)*m->edge_count*2);
 	fclose(off);
 	setlocale(LC_NUMERIC, "");
-	//printf( "CLEAP::load_mesh::mesh => (v, e, f)  = (%i, %i, %i)\n", m->vertex_count, m->edge_count, m->face_count);
+	printf( "CLEAP::load_mesh::mesh => (v, e, f)  = (%i, %i, %i)\n", m->vertex_count, m->edge_count, m->face_count);
 	m->status = CLEAP_SUCCESS;
 	m->wireframe = 0;
 	m->solid = 1;
@@ -224,6 +225,7 @@ CLEAP_RESULT _cleap_host_load_mesh(_cleap_mesh *m, const char* filename){
 	m->circumcenters_draw = 0;
 	m->voronoi_edge = 0; //TESIS
 	m->external_edge = 0;
+    printf("Load: %.5g[s]\n", _cleap_stop_timer() );
 
 	return CLEAP_SUCCESS;
 }
